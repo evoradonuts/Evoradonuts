@@ -767,7 +767,7 @@ const resp = await fetch("/api/create-user", {
     "Authorization": `Bearer ${token}`,
   },
   body: JSON.stringify({
-    emailOrUsername: emailInput,
+    emailOrUsername: emailFormat,
     password: pwdInput,
     role: form.role,
     displayName: String(form.displayName || "").trim() || null,
