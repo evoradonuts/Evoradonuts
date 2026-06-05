@@ -756,16 +756,27 @@ var DonatBoss = (() => {
       const emailFormat = emailInput.includes("@") ? emailInput : `${emailInput.toLowerCase()}@donatboss.local`;
       
       try {
-        const { error: authErr } = await sb.rpc("buat_akun_otomatis", {
-          p_email: emailFormat,
-          p_password: pwdInput,
-          p_role: form.role,
-          p_display_name: String(form.displayName || "").trim() || null,
-          p_branch_id: form.role === "worker" ? form.branchId : null,
-          p_investor_id: form.role === "investor" ? form.investorId : null
-        });
-        if (authErr) throw authErr;
-        
+        const { data } = await sb.auth.getSession();
+const token = data?.session?.access_token;
+if (!token) throw new Error("Session owner tidak ditemukan. Silakan login ulang.");
+
+const resp = await fetch("/api/create-user", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${token}`,
+  },
+  body: JSON.stringify({
+    emailOrUsername: emailInput,
+    password: pwdInput,
+    role: form.role,
+    displayName: String(form.displayName || "").trim() || null,
+    branchId: form.role === "worker" ? form.branchId : null,
+    investorId: form.role === "investor" ? form.investorId : null,
+  }),
+});
+const json = await resp.json();
+if (!resp.ok) throw new Error(json?.error || "Gagal membuat akun.");
         pushNotif("Akun Berhasil Dibuat Aktif Instan!", "success");
         setForm((f) => ({ ...f, email: "", password: "", displayName: "" }));
         refreshInvites();
