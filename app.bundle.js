@@ -731,7 +731,6 @@ var DonatBoss = (() => {
   }
   function OwnerSetting({ stab, setStab, pushNotif }) {
     const TABS = ["hpp", "paket", "cabang", "akun", "investor"];
-    const TABS = ["hpp", "paket", "cabang", "akun", "investor"];
     const TLABEL = { hpp: "Menu HPP", paket: "Box/Paket", cabang: "Cabang", akun: "Akun", investor: "Investor" };
     return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "tabs tabs-sm" }, TABS.map((t) => /* @__PURE__ */ React.createElement("button", { key: t, className: "tab" + (stab === t ? " active" : ""), onClick: () => setStab(t) }, TLABEL[t]))), stab === "hpp" && /* @__PURE__ */ React.createElement(SettingHPP, { pushNotif }), stab === "paket" && /* @__PURE__ */ React.createElement(SettingPaket, { pushNotif }), stab === "cabang" && /* @__PURE__ */ React.createElement(SettingCabang, { pushNotif }), stab === "akun" && /* @__PURE__ */ React.createElement(SettingAkun, { pushNotif }), stab === "investor" && /* @__PURE__ */ React.createElement(SettingInvestor, { pushNotif }));
   }
