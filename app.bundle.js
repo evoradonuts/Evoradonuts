@@ -21,6 +21,8 @@ var DonatBoss = (() => {
       transactions: "transactions",
       setoranHarian: "setoranHarian",
       setoranBulanan: "setoranBulanan",
+      absensi: "absensi",
+      absensiBulanan: "absensiBulanan",
       editLog: "editLog",
       pengeluaranLapak: "pengeluaranLapak",
       pengeluaranOwner: "pengeluaranOwner"
@@ -183,6 +185,15 @@ var DonatBoss = (() => {
   var fmtRp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
   var today = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   var nowTs = () => (/* @__PURE__ */ new Date()).toLocaleString("id-ID");
+  var nowIso = () => (/* @__PURE__ */ new Date()).toISOString();
+  var fmtTs = (v) => {
+    if (!v) return "-";
+    try {
+      return (/* @__PURE__ */ new Date(v)).toLocaleString("id-ID");
+    } catch {
+      return String(v);
+    }
+  };
   function useStoreTick() {
     const [tick, setTick] = useState(0);
     useEffect(() => S.subscribe(() => setTick((t) => t + 1)), []);
@@ -301,7 +312,7 @@ var DonatBoss = (() => {
       )
     );
   }
-  function WorkerPage({ pushNotif, me }) {
+  function WorkerPage({ pushNotif, me, mode = "worker" }) {
     const tick = useStoreTick();
     const [tab, setTab] = useState("kasir");
     const [branches, setBranches] = useState(() => S.get("branches") || []);
@@ -311,6 +322,7 @@ var DonatBoss = (() => {
     const [cart, setCart] = useState([]);
     const [txDate, setTxDate] = useState(today());
     const [editModal, setEditModal] = useState(null);
+    const userId = me?.user_id;
     useEffect(() => {
       setBranches(S.get("branches") || []);
       setMenus(S.get("menuVarian") || []);
@@ -335,6 +347,13 @@ var DonatBoss = (() => {
     const totalBayar = cart.reduce((a, x) => a + x.hargaJual * x.qty, 0);
     const submitTx = () => {
       if (!cart.length) return;
+      if (mode === "worker") {
+        const abs = (S.get("absensi") || []).find((a) => a.user_id === userId && a.date === txDate);
+        if (!abs?.checkin_ts) {
+          alert("Silakan check-in absensi dulu sebelum input transaksi.");
+          return;
+        }
+      }
       const txs = S.get("transactions") || [];
       S.set("transactions", [...txs, { id: uid(), branchId, date: txDate, ts: nowTs(), items: cart.map((x) => ({ ...x })), total: totalBayar, totalHPP: cart.reduce((a, x) => a + x.hpp * x.qty, 0) }]);
       setCart([]);
@@ -363,9 +382,67 @@ var DonatBoss = (() => {
       setSetoran(entry);
       pushNotif("Setoran dikirim ke Owner!", "success");
     };
-    const TABS = ["kasir", "riwayat", "pengeluaran", "setoran"];
-    const TAB_LABELS = { kasir: "Kasir", riwayat: "Riwayat", pengeluaran: "Pengeluaran", setoran: "Setoran" };
-    return /* @__PURE__ */ React.createElement("div", { className: "page" }, /* @__PURE__ */ React.createElement("div", { className: "page-header" }, /* @__PURE__ */ React.createElement("span", { className: "page-icon" }, "W"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", null, "Halaman Pekerja"), /* @__PURE__ */ React.createElement("p", { className: "page-sub" }, curBranch?.name || "\u2014", curBranch?.workers?.length ? " - " + curBranch.workers.join(", ") : ""))), /* @__PURE__ */ React.createElement("div", { className: "row-wrap mb8" }, /* @__PURE__ */ React.createElement("select", { className: "inp inp-sm", value: branchId, onChange: (e) => setBranchId(e.target.value), disabled: !!me?.branchId }, branches.map((b) => /* @__PURE__ */ React.createElement("option", { key: b.id, value: b.id }, b.name))), /* @__PURE__ */ React.createElement("input", { type: "date", className: "inp inp-sm", value: txDate, onChange: (e) => setTxDate(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "tabs" }, TABS.map((t) => /* @__PURE__ */ React.createElement("button", { key: t, className: "tab" + (tab === t ? " active" : ""), onClick: () => setTab(t) }, TAB_LABELS[t]))), tab === "kasir" && /* @__PURE__ */ React.createElement("div", { className: "kasir-layout" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { className: "section-title" }, "Menu Satuan"), /* @__PURE__ */ React.createElement("div", { className: "menu-grid" }, menus.filter((m) => m.tipe !== "paket").map((m) => /* @__PURE__ */ React.createElement("button", { key: m.id, className: "menu-card", onClick: () => addToCart(m) }, /* @__PURE__ */ React.createElement("div", { className: "menu-name" }, m.nama), /* @__PURE__ */ React.createElement("div", { className: "menu-price" }, fmtRp(m.hargaJual))))), /* @__PURE__ */ React.createElement("h3", { className: "section-title mt12" }, "Box / Paket"), /* @__PURE__ */ React.createElement("div", { className: "menu-grid" }, menus.filter((m) => m.tipe === "paket").map((m) => /* @__PURE__ */ React.createElement("button", { key: m.id, className: "menu-card menu-card-paket", onClick: () => addToCart(m) }, /* @__PURE__ */ React.createElement("div", { className: "menu-name" }, m.nama), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, opacity: 0.7 } }, "Isi ", m.isiBox, " pcs"), /* @__PURE__ */ React.createElement("div", { className: "menu-price" }, fmtRp(m.hargaJual))))), /* @__PURE__ */ React.createElement("h3", { className: "section-title mt12" }, "Toping Tambahan"), /* @__PURE__ */ React.createElement("div", { className: "menu-grid" }, topings.map((t) => /* @__PURE__ */ React.createElement("button", { key: t.id, className: "menu-card menu-card-toping", onClick: () => addToping(t) }, /* @__PURE__ */ React.createElement("div", { className: "menu-name" }, t.nama), /* @__PURE__ */ React.createElement("div", { className: "menu-price" }, fmtRp(t.hargaJual)))))), /* @__PURE__ */ React.createElement("div", { className: "cart-section" }, /* @__PURE__ */ React.createElement("h3", { className: "section-title" }, "Keranjang"), cart.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "empty-txt" }, "Belum ada item"), cart.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.id, className: "cart-item" }, /* @__PURE__ */ React.createElement("div", { className: "cart-item-info" }, /* @__PURE__ */ React.createElement("span", null, item.nama), /* @__PURE__ */ React.createElement("span", { className: "cart-qty" }, "x", item.qty)), /* @__PURE__ */ React.createElement("div", { className: "cart-item-right" }, /* @__PURE__ */ React.createElement("span", null, fmtRp(item.hargaJual * item.qty)), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", onClick: () => removeCart(item.id) }, "X")))), cart.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "cart-total" }, "Total: ", /* @__PURE__ */ React.createElement("strong", null, fmtRp(totalBayar))), /* @__PURE__ */ React.createElement("div", { className: "row-wrap" }, /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", onClick: () => setCart([]) }, "Batal"), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", onClick: submitTx }, "Simpan Transaksi"))), /* @__PURE__ */ React.createElement("div", { className: "omzet-box mt12" }, /* @__PURE__ */ React.createElement("span", null, "Omzet Hari Ini"), /* @__PURE__ */ React.createElement("strong", null, fmtRp(branchOmzet))), /* @__PURE__ */ React.createElement("div", { className: "omzet-box", style: { borderColor: "#5a1a1a" } }, /* @__PURE__ */ React.createElement("span", null, "Pengeluaran"), /* @__PURE__ */ React.createElement("strong", { style: { color: "#ef4444" } }, fmtRp(branchPeng))))), tab === "riwayat" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { className: "section-title" }, "Riwayat - ", txDate), transactions.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "empty-txt" }, "Belum ada transaksi"), [...transactions].reverse().map((tx) => /* @__PURE__ */ React.createElement("div", { key: tx.id, className: "tx-card" + (tx.edited ? " tx-edited" : "") }, /* @__PURE__ */ React.createElement("div", { className: "tx-header" }, /* @__PURE__ */ React.createElement("span", { className: "tx-id" }, "#", tx.id.slice(0, 6)), /* @__PURE__ */ React.createElement("span", { className: "tx-ts" }, tx.ts), tx.edited && /* @__PURE__ */ React.createElement("span", { className: "badge-edit" }, "Diedit")), tx.items.map((it, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "tx-item" }, it.nama, " x", it.qty, " - ", fmtRp(it.hargaJual * it.qty))), /* @__PURE__ */ React.createElement("div", { className: "tx-total" }, "Total: ", fmtRp(tx.total)), /* @__PURE__ */ React.createElement("button", { className: "btn-edit-sm", onClick: () => setEditModal(tx) }, "Edit")))), tab === "pengeluaran" && /* @__PURE__ */ React.createElement(PengeluaranLapak, { branchId, branchName: curBranch?.name || "", date: txDate, pushNotif }), tab === "setoran" && /* @__PURE__ */ React.createElement("div", { className: "setoran-box-worker" }, /* @__PURE__ */ React.createElement("div", { className: "setoran-status setoran-" + setoran.status }, setoran.status === "belum" && /* @__PURE__ */ React.createElement("span", null, "Belum Setor"), setoran.status === "menunggu" && /* @__PURE__ */ React.createElement("span", null, "Menunggu Konfirmasi Owner"), setoran.status === "selesai" && /* @__PURE__ */ React.createElement("span", null, "Sudah Setor - Dikonfirmasi")), /* @__PURE__ */ React.createElement("div", { className: "setoran-omzet" }, "Omzet: ", /* @__PURE__ */ React.createElement("strong", null, fmtRp(branchOmzet))), /* @__PURE__ */ React.createElement("div", { className: "setoran-omzet" }, "Pengeluaran Lapak: ", /* @__PURE__ */ React.createElement("strong", { style: { color: "#ef4444" } }, fmtRp(branchPeng))), /* @__PURE__ */ React.createElement("div", { className: "setoran-omzet" }, "Bersih Disetor: ", /* @__PURE__ */ React.createElement("strong", { style: { color: "#22c55e" } }, fmtRp(branchOmzet - branchPeng))), setoran.status === "belum" && /* @__PURE__ */ React.createElement("button", { className: "btn-primary btn-full", onClick: doSetoran }, "Setor Sekarang"), setoran.status === "menunggu" && /* @__PURE__ */ React.createElement("p", { className: "info-txt" }, "Menunggu Owner memverifikasi setoran Anda.")), editModal && /* @__PURE__ */ React.createElement(EditTxModal, { tx: editModal, onClose: () => setEditModal(null), onSave: saveEdit }));
+    const allowSetoran = mode === "worker";
+    const TABS = allowSetoran ? ["kasir", "riwayat", "pengeluaran", "setoran", "absensi"] : ["kasir", "riwayat", "pengeluaran", "absensi"];
+    const TAB_LABELS = { kasir: "Kasir", riwayat: "Riwayat", pengeluaran: "Pengeluaran", setoran: "Setoran", absensi: "Absensi" };
+
+    const [absMonth, setAbsMonth] = useState(today().slice(0, 7));
+    const todayAbs = useMemo(() => {
+      const all = S.get("absensi") || [];
+      return all.find((a) => a.user_id === userId && a.date === today()) || null;
+    }, [tick, userId]);
+    const doCheckin = () => {
+      if (!userId) return;
+      const all = S.get("absensi") || [];
+      const d = today();
+      const ex = all.find((a) => a.user_id === userId && a.date === d);
+      if (ex?.checkin_ts) {
+        pushNotif("Kamu sudah check-in hari ini.", "warning");
+        return;
+      }
+      const row = ex ? { ...ex, checkin_ts: nowIso(), branchId: me?.branchId || branchId } : { id: uid(), user_id: userId, branchId: me?.branchId || branchId, date: d, checkin_ts: nowIso(), checkout_ts: null };
+      S.set("absensi", ex ? all.map((a) => a.id === row.id ? row : a) : [...all, row]);
+      pushNotif("Check-in berhasil.", "success");
+    };
+    const doCheckout = () => {
+      if (!userId) return;
+      const all = S.get("absensi") || [];
+      const d = today();
+      const ex = all.find((a) => a.user_id === userId && a.date === d);
+      if (!ex?.checkin_ts) {
+        pushNotif("Kamu belum check-in hari ini.", "warning");
+        return;
+      }
+      if (ex?.checkout_ts) {
+        pushNotif("Kamu sudah check-out hari ini.", "warning");
+        return;
+      }
+      const row = { ...ex, checkout_ts: nowIso() };
+      S.set("absensi", all.map((a) => a.id === row.id ? row : a));
+      pushNotif("Check-out berhasil.", "success");
+    };
+    const myMonthRows = useMemo(() => {
+      const all = S.get("absensi") || [];
+      return all.filter((a) => a.user_id === userId && String(a.date || "").startsWith(absMonth));
+    }, [tick, userId, absMonth]);
+    const monthSnap = useMemo(() => {
+      const snaps = S.get("absensiBulanan") || [];
+      return snaps.find((s) => s.user_id === userId && s.bulan === absMonth && s.locked) || null;
+    }, [tick, userId, absMonth]);
+    const calcMonth = useMemo(() => {
+      let hadir = 0;
+      let menit = 0;
+      for (const r of myMonthRows) {
+        if (r.checkin_ts) hadir += 1;
+        if (r.checkin_ts && r.checkout_ts) {
+          const a = Date.parse(r.checkin_ts);
+          const b = Date.parse(r.checkout_ts);
+          if (!Number.isNaN(a) && !Number.isNaN(b) && b > a) menit += Math.floor((b - a) / 6e4);
+        }
+      }
+      return { hadir, menit };
+    }, [myMonthRows]);
+    return /* @__PURE__ */ React.createElement("div", { className: "page" }, /* @__PURE__ */ React.createElement("div", { className: "page-header" }, /* @__PURE__ */ React.createElement("span", { className: "page-icon" }, "W"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", null, "Halaman Pekerja"), /* @__PURE__ */ React.createElement("p", { className: "page-sub" }, curBranch?.name || "\u2014", curBranch?.workers?.length ? " - " + curBranch.workers.join(", ") : ""))), /* @__PURE__ */ React.createElement("div", { className: "row-wrap mb8" }, /* @__PURE__ */ React.createElement("select", { className: "inp inp-sm", value: branchId, onChange: (e) => setBranchId(e.target.value), disabled: !!me?.branchId }, branches.map((b) => /* @__PURE__ */ React.createElement("option", { key: b.id, value: b.id }, b.name))), /* @__PURE__ */ React.createElement("input", { type: "date", className: "inp inp-sm", value: txDate, onChange: (e) => setTxDate(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "tabs" }, TABS.map((t) => /* @__PURE__ */ React.createElement("button", { key: t, className: "tab" + (tab === t ? " active" : ""), onClick: () => setTab(t) }, TAB_LABELS[t]))), tab === "kasir" && /* @__PURE__ */ React.createElement("div", { className: "kasir-layout" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { className: "section-title" }, "Menu Satuan"), /* @__PURE__ */ React.createElement("div", { className: "menu-grid" }, menus.filter((m) => m.tipe !== "paket").map((m) => /* @__PURE__ */ React.createElement("button", { key: m.id, className: "menu-card", onClick: () => addToCart(m) }, /* @__PURE__ */ React.createElement("div", { className: "menu-name" }, m.nama), /* @__PURE__ */ React.createElement("div", { className: "menu-price" }, fmtRp(m.hargaJual))))), /* @__PURE__ */ React.createElement("h3", { className: "section-title mt12" }, "Box / Paket"), /* @__PURE__ */ React.createElement("div", { className: "menu-grid" }, menus.filter((m) => m.tipe === "paket").map((m) => /* @__PURE__ */ React.createElement("button", { key: m.id, className: "menu-card menu-card-paket", onClick: () => addToCart(m) }, /* @__PURE__ */ React.createElement("div", { className: "menu-name" }, m.nama), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, opacity: 0.7 } }, "Isi ", m.isiBox, " pcs"), /* @__PURE__ */ React.createElement("div", { className: "menu-price" }, fmtRp(m.hargaJual))))), /* @__PURE__ */ React.createElement("h3", { className: "section-title mt12" }, "Toping Tambahan"), /* @__PURE__ */ React.createElement("div", { className: "menu-grid" }, topings.map((t) => /* @__PURE__ */ React.createElement("button", { key: t.id, className: "menu-card menu-card-toping", onClick: () => addToping(t) }, /* @__PURE__ */ React.createElement("div", { className: "menu-name" }, t.nama), /* @__PURE__ */ React.createElement("div", { className: "menu-price" }, fmtRp(t.hargaJual)))))), /* @__PURE__ */ React.createElement("div", { className: "cart-section" }, /* @__PURE__ */ React.createElement("h3", { className: "section-title" }, "Keranjang"), cart.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "empty-txt" }, "Belum ada item"), cart.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.id, className: "cart-item" }, /* @__PURE__ */ React.createElement("div", { className: "cart-item-info" }, /* @__PURE__ */ React.createElement("span", null, item.nama), /* @__PURE__ */ React.createElement("span", { className: "cart-qty" }, "x", item.qty)), /* @__PURE__ */ React.createElement("div", { className: "cart-item-right" }, /* @__PURE__ */ React.createElement("span", null, fmtRp(item.hargaJual * item.qty)), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", onClick: () => removeCart(item.id) }, "X")))), cart.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "cart-total" }, "Total: ", /* @__PURE__ */ React.createElement("strong", null, fmtRp(totalBayar))), /* @__PURE__ */ React.createElement("div", { className: "row-wrap" }, /* @__PURE__ */ React.createElement("button", { className: "btn-secondary", onClick: () => setCart([]) }, "Batal"), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", onClick: submitTx }, "Simpan Transaksi"))), /* @__PURE__ */ React.createElement("div", { className: "omzet-box mt12" }, /* @__PURE__ */ React.createElement("span", null, "Omzet Hari Ini"), /* @__PURE__ */ React.createElement("strong", null, fmtRp(branchOmzet))), /* @__PURE__ */ React.createElement("div", { className: "omzet-box", style: { borderColor: "#5a1a1a" } }, /* @__PURE__ */ React.createElement("span", null, "Pengeluaran"), /* @__PURE__ */ React.createElement("strong", { style: { color: "#ef4444" } }, fmtRp(branchPeng))))), tab === "riwayat" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { className: "section-title" }, "Riwayat - ", txDate), transactions.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "empty-txt" }, "Belum ada transaksi"), [...transactions].reverse().map((tx) => /* @__PURE__ */ React.createElement("div", { key: tx.id, className: "tx-card" + (tx.edited ? " tx-edited" : "") }, /* @__PURE__ */ React.createElement("div", { className: "tx-header" }, /* @__PURE__ */ React.createElement("span", { className: "tx-id" }, "#", tx.id.slice(0, 6)), /* @__PURE__ */ React.createElement("span", { className: "tx-ts" }, tx.ts), tx.edited && /* @__PURE__ */ React.createElement("span", { className: "badge-edit" }, "Diedit")), tx.items.map((it, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "tx-item" }, it.nama, " x", it.qty, " - ", fmtRp(it.hargaJual * it.qty))), /* @__PURE__ */ React.createElement("div", { className: "tx-total" }, "Total: ", fmtRp(tx.total)), /* @__PURE__ */ React.createElement("button", { className: "btn-edit-sm", onClick: () => setEditModal(tx) }, "Edit")))), tab === "pengeluaran" && /* @__PURE__ */ React.createElement(PengeluaranLapak, { branchId, branchName: curBranch?.name || "", date: txDate, pushNotif }), allowSetoran && tab === "setoran" && /* @__PURE__ */ React.createElement("div", { className: "setoran-box-worker" }, /* @__PURE__ */ React.createElement("div", { className: "setoran-status setoran-" + setoran.status }, setoran.status === "belum" && /* @__PURE__ */ React.createElement("span", null, "Belum Setor"), setoran.status === "menunggu" && /* @__PURE__ */ React.createElement("span", null, "Menunggu Konfirmasi Owner"), setoran.status === "selesai" && /* @__PURE__ */ React.createElement("span", null, "Sudah Setor - Dikonfirmasi")), /* @__PURE__ */ React.createElement("div", { className: "setoran-omzet" }, "Omzet: ", /* @__PURE__ */ React.createElement("strong", null, fmtRp(branchOmzet))), /* @__PURE__ */ React.createElement("div", { className: "setoran-omzet" }, "Pengeluaran Lapak: ", /* @__PURE__ */ React.createElement("strong", { style: { color: "#ef4444" } }, fmtRp(branchPeng))), /* @__PURE__ */ React.createElement("div", { className: "setoran-omzet" }, "Bersih Disetor: ", /* @__PURE__ */ React.createElement("strong", { style: { color: "#22c55e" } }, fmtRp(branchOmzet - branchPeng))), setoran.status === "belum" && /* @__PURE__ */ React.createElement("button", { className: "btn-primary btn-full", onClick: doSetoran }, "Setor Sekarang"), setoran.status === "menunggu" && /* @__PURE__ */ React.createElement("p", { className: "info-txt" }, "Menunggu Owner memverifikasi setoran Anda.")), tab === "absensi" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { className: "section-title mt8" }, "Absensi"), /* @__PURE__ */ React.createElement("div", { className: "form-card" }, /* @__PURE__ */ React.createElement("div", { className: "row-wrap", style: { justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700 } }, "Hari ini"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9a9690" } }, "Check-in: ", fmtTs(todayAbs?.checkin_ts), " | Check-out: ", fmtTs(todayAbs?.checkout_ts))), /* @__PURE__ */ React.createElement("div", { className: "row-wrap" }, /* @__PURE__ */ React.createElement("button", { className: "btn-primary btn-sm", onClick: doCheckin }, "Check-in"), /* @__PURE__ */ React.createElement("button", { className: "btn-secondary btn-sm", onClick: doCheckout }, "Check-out")))), /* @__PURE__ */ React.createElement("div", { className: "field-group mt8" }, /* @__PURE__ */ React.createElement("label", null, "Rekap Bulan"), /* @__PURE__ */ React.createElement("input", { type: "month", className: "inp inp-sm", value: absMonth, onChange: (e) => setAbsMonth(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "kpi-grid" }, /* @__PURE__ */ React.createElement("div", { className: "kpi-card kpi-omzet" }, /* @__PURE__ */ React.createElement("div", { className: "kpi-label" }, "Total Hadir"), /* @__PURE__ */ React.createElement("div", { className: "kpi-val" }, (monthSnap ? monthSnap.total_hadir : calcMonth.hadir), " hari")), /* @__PURE__ */ React.createElement("div", { className: "kpi-card kpi-profit" }, /* @__PURE__ */ React.createElement("div", { className: "kpi-label" }, "Total Jam"), /* @__PURE__ */ React.createElement("div", { className: "kpi-val" }, Math.round(((monthSnap ? monthSnap.total_menit : calcMonth.menit) || 0) / 60 * 10) / 10, " jam"))), monthSnap && /* @__PURE__ */ React.createElement("p", { className: "info-txt mt8" }, "Rekap bulan ini sudah dikunci oleh Owner."), /* @__PURE__ */ React.createElement("h3", { className: "section-title mt12" }, "Riwayat Absensi (", absMonth, ")"), myMonthRows.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "empty-txt" }, "Belum ada absensi."), [...myMonthRows].sort((a, b) => String(b.date).localeCompare(String(a.date))).map((r) => /* @__PURE__ */ React.createElement("div", { key: r.id, className: "peng-row" }, /* @__PURE__ */ React.createElement("div", { className: "peng-info" }, /* @__PURE__ */ React.createElement("span", { className: "peng-ket" }, r.date), /* @__PURE__ */ React.createElement("span", { className: "peng-ts" }, "In: ", fmtTs(r.checkin_ts), " | Out: ", fmtTs(r.checkout_ts)))))), editModal && /* @__PURE__ */ React.createElement(EditTxModal, { tx: editModal, onClose: () => setEditModal(null), onSave: saveEdit }));
   }
   function PengeluaranLapak({ branchId, branchName, date, pushNotif }) {
     const getList = () => (S.get("pengeluaranLapak") || []).filter((p) => p.branchId === branchId && p.date === date);
@@ -428,9 +505,9 @@ var DonatBoss = (() => {
       }, 5e3);
       return () => clearInterval(iv);
     }, [pushNotif]);
-    const TABS = ["dashboard", "setoran", "laporan", "pengeluaran", "setting"];
-    const TLABEL = { dashboard: "Dashboard", setoran: "Setoran", laporan: "Laporan", pengeluaran: "Pengeluaran", setting: "Seting" };
-    return /* @__PURE__ */ React.createElement("div", { className: "page" }, /* @__PURE__ */ React.createElement("div", { className: "page-header" }, /* @__PURE__ */ React.createElement("span", { className: "page-icon" }, "O"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", null, "Panel Owner"), /* @__PURE__ */ React.createElement("p", { className: "page-sub" }, "Kontrol penuh bisnis Anda"))), /* @__PURE__ */ React.createElement("div", { className: "tabs tabs-scroll" }, TABS.map((t) => /* @__PURE__ */ React.createElement("button", { key: t, className: "tab" + (tab === t ? " active" : ""), onClick: () => setTab(t) }, TLABEL[t]))), tab === "dashboard" && /* @__PURE__ */ React.createElement(OwnerDashboard, null), tab === "setoran" && /* @__PURE__ */ React.createElement(OwnerSetoran, { pushNotif }), tab === "laporan" && /* @__PURE__ */ React.createElement(OwnerLaporan, null), tab === "pengeluaran" && /* @__PURE__ */ React.createElement(PengeluaranOwner, { pushNotif }), tab === "setting" && /* @__PURE__ */ React.createElement(OwnerSetting, { stab, setStab, pushNotif }));
+    const TABS = ["dashboard", "kasir", "setoran", "laporan", "absensi", "pengeluaran", "setting"];
+    const TLABEL = { dashboard: "Dashboard", kasir: "Kasir", setoran: "Setoran", laporan: "Laporan", absensi: "Absensi", pengeluaran: "Pengeluaran", setting: "Seting" };
+    return /* @__PURE__ */ React.createElement("div", { className: "page" }, /* @__PURE__ */ React.createElement("div", { className: "page-header" }, /* @__PURE__ */ React.createElement("span", { className: "page-icon" }, "O"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", null, "Panel Owner"), /* @__PURE__ */ React.createElement("p", { className: "page-sub" }, "Kontrol penuh bisnis Anda"))), /* @__PURE__ */ React.createElement("div", { className: "tabs tabs-scroll" }, TABS.map((t) => /* @__PURE__ */ React.createElement("button", { key: t, className: "tab" + (tab === t ? " active" : ""), onClick: () => setTab(t) }, TLABEL[t]))), tab === "dashboard" && /* @__PURE__ */ React.createElement(OwnerDashboard, null), tab === "kasir" && /* @__PURE__ */ React.createElement(WorkerPage, { pushNotif, me, mode: "owner" }), tab === "setoran" && /* @__PURE__ */ React.createElement(OwnerSetoran, { pushNotif }), tab === "laporan" && /* @__PURE__ */ React.createElement(OwnerLaporan, null), tab === "absensi" && /* @__PURE__ */ React.createElement(OwnerAbsensi, { pushNotif }), tab === "pengeluaran" && /* @__PURE__ */ React.createElement(PengeluaranOwner, { pushNotif }), tab === "setting" && /* @__PURE__ */ React.createElement(OwnerSetting, { stab, setStab, pushNotif }));
   }
   function OwnerDashboard() {
     const [dr, setDr] = useState({ from: today(), to: today() });
@@ -577,7 +654,83 @@ var DonatBoss = (() => {
     const laba = omzet - modal - tPL - tPO;
     return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "filter-bar mb8" }, /* @__PURE__ */ React.createElement("input", { type: "date", className: "inp inp-sm", value: date, onChange: (e) => setDate(e.target.value) }), /* @__PURE__ */ React.createElement("select", { className: "inp inp-sm", value: selBranch, onChange: (e) => setSelBranch(e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "Semua Cabang"), branches.map((b) => /* @__PURE__ */ React.createElement("option", { key: b.id, value: b.id }, b.name)))), /* @__PURE__ */ React.createElement("div", { className: "kpi-grid" }, /* @__PURE__ */ React.createElement("div", { className: "kpi-card kpi-omzet" }, /* @__PURE__ */ React.createElement("div", { className: "kpi-label" }, "Omzet"), /* @__PURE__ */ React.createElement("div", { className: "kpi-val" }, fmtRp(omzet))), /* @__PURE__ */ React.createElement("div", { className: "kpi-card kpi-modal" }, /* @__PURE__ */ React.createElement("div", { className: "kpi-label" }, "HPP Bahan"), /* @__PURE__ */ React.createElement("div", { className: "kpi-val" }, fmtRp(modal))), /* @__PURE__ */ React.createElement("div", { className: "kpi-card kpi-peng" }, /* @__PURE__ */ React.createElement("div", { className: "kpi-label" }, "Peng. Lapak"), /* @__PURE__ */ React.createElement("div", { className: "kpi-val" }, fmtRp(tPL))), /* @__PURE__ */ React.createElement("div", { className: "kpi-card kpi-peng" }, /* @__PURE__ */ React.createElement("div", { className: "kpi-label" }, "Peng. Owner"), /* @__PURE__ */ React.createElement("div", { className: "kpi-val" }, fmtRp(tPO))), /* @__PURE__ */ React.createElement("div", { className: "kpi-card kpi-profit" }, /* @__PURE__ */ React.createElement("div", { className: "kpi-label" }, "Laba Bersih"), /* @__PURE__ */ React.createElement("div", { className: "kpi-val" }, fmtRp(laba)))), editLogs.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mt8" }, /* @__PURE__ */ React.createElement("h3", { className: "section-title" }, "Log Perubahan Kasir"), editLogs.map((log) => /* @__PURE__ */ React.createElement("div", { key: log.id, className: "log-card" }, /* @__PURE__ */ React.createElement("div", { className: "log-header" }, /* @__PURE__ */ React.createElement("span", null, log.ts), /* @__PURE__ */ React.createElement("span", { className: "badge-warn" }, "Diedit Kasir"), /* @__PURE__ */ React.createElement("span", { className: "badge-branch" }, log.branchName || log.branchId)), /* @__PURE__ */ React.createElement("div", { className: "log-detail" }, "TX #", log.txId.slice(0, 6), ' - Alasan: "', log.alasan, '"'), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9a9690", marginTop: 4 } }, "Sebelum: ", (log.before || []).map((x) => x.nama + " x" + x.qty).join(", "), " - Sesudah: ", (log.after || []).map((x) => x.nama + " x" + x.qty).join(", "))))), /* @__PURE__ */ React.createElement("h3", { className: "section-title mt8" }, "Detail Transaksi"), txs.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "empty-txt" }, "Belum ada transaksi"), txs.map((tx) => /* @__PURE__ */ React.createElement("div", { key: tx.id, className: "tx-card" + (tx.edited ? " tx-edited" : "") }, /* @__PURE__ */ React.createElement("div", { className: "tx-header" }, /* @__PURE__ */ React.createElement("span", { className: "tx-id" }, "#", tx.id.slice(0, 6)), /* @__PURE__ */ React.createElement("span", { className: "badge-branch" }, branches.find((b) => b.id === tx.branchId)?.name || tx.branchId), /* @__PURE__ */ React.createElement("span", { className: "tx-ts" }, tx.ts), tx.edited && /* @__PURE__ */ React.createElement("span", { className: "badge-warn" }, "Diedit")), tx.items.map((it, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "tx-item" }, it.nama, " x", it.qty, " = ", fmtRp(it.hargaJual * it.qty), " (HPP: ", fmtRp(it.hpp * it.qty), ")")), /* @__PURE__ */ React.createElement("div", { className: "tx-total" }, "Omzet: ", fmtRp(tx.total), " | HPP: ", fmtRp(tx.totalHPP), " | Laba: ", fmtRp(tx.total - tx.totalHPP)))), pL.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mt8" }, /* @__PURE__ */ React.createElement("h3", { className: "section-title" }, "Pengeluaran Lapak"), pL.map((p) => /* @__PURE__ */ React.createElement("div", { key: p.id, className: "peng-row" }, /* @__PURE__ */ React.createElement("div", { className: "peng-info" }, /* @__PURE__ */ React.createElement("span", { className: "peng-ket" }, p.keterangan), /* @__PURE__ */ React.createElement("span", { className: "peng-ts" }, branches.find((b) => b.id === p.branchId)?.name || p.branchName, " - ", p.ts)), /* @__PURE__ */ React.createElement("div", { className: "peng-right" }, /* @__PURE__ */ React.createElement("span", { className: "peng-jml" }, fmtRp(p.jumlah))))), /* @__PURE__ */ React.createElement("div", { className: "peng-total" }, "Total Lapak: ", /* @__PURE__ */ React.createElement("strong", null, fmtRp(tPL)))));
   }
+
+  function OwnerAbsensi({ pushNotif }) {
+    const tick = useStoreTick();
+    const [month, setMonth] = useState(today().slice(0, 7));
+    const [selBranch, setSelBranch] = useState("all");
+    const branches = S.get("branches") || [];
+    const profiles = S.get("profiles") || [];
+    const absensi = S.get("absensi") || [];
+    const snaps = S.get("absensiBulanan") || [];
+    const workers = profiles.filter((p) => p.role === "worker").filter((p) => selBranch === "all" || p.branchId === selBranch);
+    const calcUserMonth = useCallback((userId) => {
+      const rows2 = absensi.filter((a) => a.user_id === userId && String(a.date || "").startsWith(month));
+      let hadir = 0;
+      let menit = 0;
+      for (const r of rows2) {
+        if (r.checkin_ts) hadir += 1;
+        if (r.checkin_ts && r.checkout_ts) {
+          const a = Date.parse(r.checkin_ts);
+          const b = Date.parse(r.checkout_ts);
+          if (!Number.isNaN(a) && !Number.isNaN(b) && b > a) menit += Math.floor((b - a) / 6e4);
+        }
+      }
+      return { hadir, menit };
+    }, [absensi, month]);
+    const rows = useMemo(() => {
+      return workers.map((w) => {
+        const snap = snaps.find((s) => s.user_id === w.user_id && s.bulan === month && s.locked) || null;
+        const calc = calcUserMonth(w.user_id);
+        return {
+          w,
+          locked: !!snap,
+          hadir: snap ? snap.total_hadir : calc.hadir,
+          menit: snap ? snap.total_menit : calc.menit
+        };
+      });
+    }, [workers, snaps, month, calcUserMonth, tick]);
+    const lockMonth = async () => {
+      try {
+        if (rows.length === 0) {
+          pushNotif("Tidak ada pekerja untuk direkap.", "warning");
+          return;
+        }
+        const entries = rows.map((r) => ({
+          user_id: r.w.user_id,
+          branchId: r.w.branchId,
+          bulan: month,
+          total_hadir: r.hadir,
+          total_menit: r.menit,
+          locked: true,
+          generated_at: nowIso()
+        }));
+        const { error } = await sb.from("absensiBulanan").upsert(entries, { onConflict: "user_id,bulan" });
+        if (error) throw error;
+        await S.loadKey("absensiBulanan");
+        pushNotif("Rekap absensi bulan ini berhasil dikunci.", "success");
+      } catch (e) {
+        pushNotif(e?.message || String(e), "warning");
+      }
+    };
+    const unlockMonth = async () => {
+      try {
+        for (const r of rows) {
+          const { error } = await sb.from("absensiBulanan").update({ locked: false, generated_at: nowIso() }).eq("user_id", r.w.user_id).eq("bulan", month);
+          if (error) throw error;
+        }
+        await S.loadKey("absensiBulanan");
+        pushNotif("Kunci rekap bulan ini dibuka.", "success");
+      } catch (e) {
+        pushNotif(e?.message || String(e), "warning");
+      }
+    };
+    const totalHadir = rows.reduce((a, r) => a + (r.hadir || 0), 0);
+    const totalMenit = rows.reduce((a, r) => a + (r.menit || 0), 0);
+    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "filter-bar mb8" }, /* @__PURE__ */ React.createElement("input", { type: "month", className: "inp inp-sm", value: month, onChange: (e) => setMonth(e.target.value) }), /* @__PURE__ */ React.createElement("select", { className: "inp inp-sm", value: selBranch, onChange: (e) => setSelBranch(e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "Semua Cabang"), branches.map((b) => /* @__PURE__ */ React.createElement("option", { key: b.id, value: b.id }, b.name))), /* @__PURE__ */ React.createElement("button", { className: "btn-primary btn-sm", onClick: lockMonth }, "Kunci Rekap"), /* @__PURE__ */ React.createElement("button", { className: "btn-secondary btn-sm", onClick: unlockMonth }, "Buka Kunci")), /* @__PURE__ */ React.createElement("div", { className: "kpi-grid" }, /* @__PURE__ */ React.createElement("div", { className: "kpi-card kpi-omzet" }, /* @__PURE__ */ React.createElement("div", { className: "kpi-label" }, "Total Hadir"), /* @__PURE__ */ React.createElement("div", { className: "kpi-val" }, totalHadir, " hari")), /* @__PURE__ */ React.createElement("div", { className: "kpi-card kpi-profit" }, /* @__PURE__ */ React.createElement("div", { className: "kpi-label" }, "Total Jam"), /* @__PURE__ */ React.createElement("div", { className: "kpi-val" }, Math.round(totalMenit / 60 * 10) / 10, " jam")), /* @__PURE__ */ React.createElement("div", { className: "kpi-card kpi-cab" }, /* @__PURE__ */ React.createElement("div", { className: "kpi-label" }, "Pekerja"), /* @__PURE__ */ React.createElement("div", { className: "kpi-val" }, rows.length))), /* @__PURE__ */ React.createElement("h3", { className: "section-title mt12" }, "Detail Absensi Bulanan"), rows.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "empty-txt" }, "Belum ada pekerja / data profiles belum termuat."), rows.map((r) => /* @__PURE__ */ React.createElement("div", { key: r.w.user_id, className: "peng-row" }, /* @__PURE__ */ React.createElement("div", { className: "peng-info" }, /* @__PURE__ */ React.createElement("span", { className: "peng-ket" }, r.w.display_name || r.w.email || r.w.user_id.slice(0, 6)), /* @__PURE__ */ React.createElement("span", { className: "peng-ts" }, "Cabang: ", branches.find((b) => b.id === r.w.branchId)?.name || r.w.branchId || "-", " | Hadir: ", r.hadir, " | Jam: ", Math.round(r.menit / 60 * 10) / 10, r.locked ? " | (Terkunci)" : "")))));
+  }
   function OwnerSetting({ stab, setStab, pushNotif }) {
+    const TABS = ["hpp", "paket", "cabang", "akun", "investor"];
     const TABS = ["hpp", "paket", "cabang", "akun", "investor"];
     const TLABEL = { hpp: "Menu HPP", paket: "Box/Paket", cabang: "Cabang", akun: "Akun", investor: "Investor" };
     return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "tabs tabs-sm" }, TABS.map((t) => /* @__PURE__ */ React.createElement("button", { key: t, className: "tab" + (stab === t ? " active" : ""), onClick: () => setStab(t) }, TLABEL[t]))), stab === "hpp" && /* @__PURE__ */ React.createElement(SettingHPP, { pushNotif }), stab === "paket" && /* @__PURE__ */ React.createElement(SettingPaket, { pushNotif }), stab === "cabang" && /* @__PURE__ */ React.createElement(SettingCabang, { pushNotif }), stab === "akun" && /* @__PURE__ */ React.createElement(SettingAkun, { pushNotif }), stab === "investor" && /* @__PURE__ */ React.createElement(SettingInvestor, { pushNotif }));
