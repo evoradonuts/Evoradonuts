@@ -421,7 +421,9 @@ function WorkerPage({ pushNotif, me }) {
   return (
     <div className="page">
       <div className="page-header">
-        <span className="page-icon">W</span>
+        <span className="page-icon">
+  <img src="./logo.jpg" alt="Evora" style={{ width: 24, height: 24, borderRadius: "50%" }} />
+</span>
         <div>
           <h2>Halaman Pekerja</h2>
           <p className="page-sub">{curBranch?.name||"—"}{curBranch?.workers?.length?" - "+curBranch.workers.join(", "):""}</p>
@@ -1737,7 +1739,7 @@ function App() {
       ) : (
         <div className="app-wrap">
           <nav className="top-nav">
-            <span className="nav-brand">DonatBoss</span>
+            <span className="nav-brand">EVORA</span>
             <span className="nav-role">
               {profile?.role==="owner"?"Owner":profile?.role==="worker"?"Pekerja":profile?.role==="investor"?"Investor":"—"}
             </span>
