@@ -302,8 +302,8 @@ function LoginPage() {
   return (
     <div className="login-wrap">
       <div className="login-card">
-        <div style={{ fontSize: 52, textAlign: "center" }}>donat</div>
-        <h1 className="login-title">DonatBoss</h1>
+        <div style={{ fontSize: 52, textAlign: "center" }}>EVORA</div>
+        <h1 className="login-title">donuts</h1>
         <p className="login-sub">Masuk aman menggunakan Kata Sandi tanpa tautan email.</p>
 
         <div className="field-group">
