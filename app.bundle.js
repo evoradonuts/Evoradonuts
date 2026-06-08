@@ -2,6 +2,40 @@ var DonatBoss = (() => {
   // ../data/user/work/build/app.jsx
   var { useState, useEffect, useCallback, useMemo } = React;
   var sb = window.sb;
+  // Patch keamanan: jangan izinkan operasi sensitif (hapus akun) via RPC langsung dari client.
+  // Kalau UI masih memanggil sb.rpc("hapus_akun_langsung"), kita alihkan ke endpoint server (/api/delete-user).
+  try {
+    const __rpc = sb.rpc.bind(sb);
+    sb.rpc = async (fn, args) => {
+      if (fn === "hapus_akun_langsung") {
+        try {
+          const { data: sessData } = await sb.auth.getSession();
+          const token = sessData?.session?.access_token;
+          if (!token) throw new Error("Owner harus login dulu.");
+          const resp = await fetch("/api/delete-user", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify(args || {})
+          });
+          const text = await resp.text();
+          let json = null;
+          try {
+            json = JSON.parse(text);
+          } catch {
+          }
+          if (!resp.ok) throw new Error(json?.error || text || "Gagal hapus akun.");
+          return { data: json, error: null };
+        } catch (e) {
+          return { data: null, error: { message: e?.message || String(e) } };
+        }
+      }
+      return __rpc(fn, args);
+    };
+  } catch {
+  }
   var uid = () => {
     if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
     return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -261,7 +295,7 @@ var DonatBoss = (() => {
         "div",
         { className: "login-card" },
         /* @__PURE__ */ React.createElement("div", { style: { fontSize: 52, textAlign: "center" } }, "donat"),
-        /* @__PURE__ */ React.createElement("h1", { className: "login-title" }, "DonatBoss"),
+        /* @__PURE__ */ React.createElement("h1", { className: "login-title" }, "Evora"),
         /* @__PURE__ */ React.createElement("p", { className: "login-sub" }, "Masuk privat menggunakan Kata Sandi tanpa tautan email."),
         
         /* @__PURE__ */ React.createElement(
@@ -730,9 +764,32 @@ var DonatBoss = (() => {
     return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "filter-bar mb8" }, /* @__PURE__ */ React.createElement("input", { type: "month", className: "inp inp-sm", value: month, onChange: (e) => setMonth(e.target.value) }), /* @__PURE__ */ React.createElement("select", { className: "inp inp-sm", value: selBranch, onChange: (e) => setSelBranch(e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "Semua Cabang"), branches.map((b) => /* @__PURE__ */ React.createElement("option", { key: b.id, value: b.id }, b.name))), /* @__PURE__ */ React.createElement("button", { className: "btn-primary btn-sm", onClick: lockMonth }, "Kunci Rekap"), /* @__PURE__ */ React.createElement("button", { className: "btn-secondary btn-sm", onClick: unlockMonth }, "Buka Kunci")), /* @__PURE__ */ React.createElement("div", { className: "kpi-grid" }, /* @__PURE__ */ React.createElement("div", { className: "kpi-card kpi-omzet" }, /* @__PURE__ */ React.createElement("div", { className: "kpi-label" }, "Total Hadir"), /* @__PURE__ */ React.createElement("div", { className: "kpi-val" }, totalHadir, " hari")), /* @__PURE__ */ React.createElement("div", { className: "kpi-card kpi-profit" }, /* @__PURE__ */ React.createElement("div", { className: "kpi-label" }, "Total Jam"), /* @__PURE__ */ React.createElement("div", { className: "kpi-val" }, Math.round(totalMenit / 60 * 10) / 10, " jam")), /* @__PURE__ */ React.createElement("div", { className: "kpi-card kpi-cab" }, /* @__PURE__ */ React.createElement("div", { className: "kpi-label" }, "Pekerja"), /* @__PURE__ */ React.createElement("div", { className: "kpi-val" }, rows.length))), /* @__PURE__ */ React.createElement("h3", { className: "section-title mt12" }, "Detail Absensi Bulanan"), rows.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "empty-txt" }, "Belum ada pekerja / data profiles belum termuat."), rows.map((r) => /* @__PURE__ */ React.createElement("div", { key: r.w.user_id, className: "peng-row" }, /* @__PURE__ */ React.createElement("div", { className: "peng-info" }, /* @__PURE__ */ React.createElement("span", { className: "peng-ket" }, r.w.display_name || r.w.email || r.w.user_id.slice(0, 6)), /* @__PURE__ */ React.createElement("span", { className: "peng-ts" }, "Cabang: ", branches.find((b) => b.id === r.w.branchId)?.name || r.w.branchId || "-", " | Hadir: ", r.hadir, " | Jam: ", Math.round(r.menit / 60 * 10) / 10, r.locked ? " | (Terkunci)" : "")))));
   }
   function OwnerSetting({ stab, setStab, pushNotif }) {
-    const TABS = ["hpp", "paket", "cabang", "akun", "investor"];
-    const TLABEL = { hpp: "Menu HPP", paket: "Box/Paket", cabang: "Cabang", akun: "Akun", investor: "Investor" };
-    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "tabs tabs-sm" }, TABS.map((t) => /* @__PURE__ */ React.createElement("button", { key: t, className: "tab" + (stab === t ? " active" : ""), onClick: () => setStab(t) }, TLABEL[t]))), stab === "hpp" && /* @__PURE__ */ React.createElement(SettingHPP, { pushNotif }), stab === "paket" && /* @__PURE__ */ React.createElement(SettingPaket, { pushNotif }), stab === "cabang" && /* @__PURE__ */ React.createElement(SettingCabang, { pushNotif }), stab === "akun" && /* @__PURE__ */ React.createElement(SettingAkun, { pushNotif }), stab === "investor" && /* @__PURE__ */ React.createElement(SettingInvestor, { pushNotif }));
+    const TABS = ["hpp", "paket", "cabang", "akun", "investor", "data"];
+    const TLABEL = { hpp: "Menu HPP", paket: "Box/Paket", cabang: "Cabang", akun: "Akun", investor: "Investor", data: "Data" };
+    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "tabs tabs-sm" }, TABS.map((t) => /* @__PURE__ */ React.createElement("button", { key: t, className: "tab" + (stab === t ? " active" : ""), onClick: () => setStab(t) }, TLABEL[t]))), stab === "hpp" && /* @__PURE__ */ React.createElement(SettingHPP, { pushNotif }), stab === "paket" && /* @__PURE__ */ React.createElement(SettingPaket, { pushNotif }), stab === "cabang" && /* @__PURE__ */ React.createElement(SettingCabang, { pushNotif }), stab === "akun" && /* @__PURE__ */ React.createElement(SettingAkun, { pushNotif }), stab === "investor" && /* @__PURE__ */ React.createElement(SettingInvestor, { pushNotif }), stab === "data" && /* @__PURE__ */ React.createElement(SettingData, { pushNotif }));
+  }
+
+  // Tab khusus untuk bersih-bersih data uji coba (owner saja).
+  function SettingData({ pushNotif }) {
+    const [busy, setBusy] = useState(false);
+    const clearTable = async (table) => {
+      const { error } = await sb.from(table).delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      if (error) throw error;
+    };
+    const doClear = async (label, tables, keysToReload) => {
+      if (!confirm(`Yakin hapus data: ${label} ?`)) return;
+      setBusy(true);
+      try {
+        for (const t of tables) await clearTable(t);
+        for (const k of keysToReload) await S.loadKey(k).catch(() => {});
+        pushNotif(`Berhasil hapus: ${label}`, "success");
+      } catch (e) {
+        pushNotif(e?.message || String(e), "warning");
+      } finally {
+        setBusy(false);
+      }
+    };
+    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { className: "section-title mt8" }, "Bersihkan Data (Uji Coba)"), /* @__PURE__ */ React.createElement("p", { className: "info-txt" }, "Tombol di bawah untuk menghapus data yang kamu isi asal-asalan saat testing. Pisah per kategori agar tidak bingung."), /* @__PURE__ */ React.createElement("div", { className: "form-card mt8" }, /* @__PURE__ */ React.createElement("h4", null, "Hapus per kategori"), /* @__PURE__ */ React.createElement("div", { className: "row-wrap", style: { gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Laporan & Transaksi", ["transactions"], ["transactions"]) }, "Hapus Laporan/Transaksi"), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Pengeluaran", ["pengeluaranLapak", "pengeluaranOwner"], ["pengeluaranLapak", "pengeluaranOwner"]) }, "Hapus Pengeluaran"), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Setoran", ["setoranHarian", "setoranBulanan"], ["setoranHarian", "setoranBulanan"]) }, "Hapus Setoran"), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Absensi", ["absensi", "absensiBulanan"], ["absensi", "absensiBulanan"]) }, "Hapus Absensi"), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Edit Log", ["editLog"], ["editLog"]) }, "Hapus Edit Log"))));
   }
   function SettingHPP({ pushNotif }) {
     const [sub, setSub] = useState("bahan");
@@ -940,8 +997,13 @@ const resp = await fetch("/api/create-user", {
   }),
 });
 
-const json = await resp.json();
-if (!resp.ok) throw new Error(json?.error || "Gagal membuat user.");
+const text = await resp.text();
+let json = null;
+try {
+  json = JSON.parse(text);
+} catch {
+}
+if (!resp.ok) throw new Error(json?.error || text || "Gagal membuat user.");
 
         
         pushNotif("Akun Berhasil Dibuat Aktif Instan!", "success");
@@ -1097,7 +1159,7 @@ if (!resp.ok) throw new Error(json?.error || "Gagal membuat user.");
         }
       };
     }, [syncAfterLogin]);
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, !authSession ? /* @__PURE__ */ React.createElement(LoginPage, null) : /* @__PURE__ */ React.createElement("div", { className: "app-wrap" }, /* @__PURE__ */ React.createElement("nav", { className: "top-nav" }, /* @__PURE__ */ React.createElement("span", { className: "nav-brand" }, "DonatBoss"), /* @__PURE__ */ React.createElement("span", { className: "nav-role" }, profile?.role === "owner" ? "Owner" : profile?.role === "worker" ? "Pekerja" : profile?.role === "investor" ? "Investor" : "\u2014"), /* @__PURE__ */ React.createElement("button", { className: "btn-logout", onClick: () => sb.auth.signOut() }, "Keluar")), /* @__PURE__ */ React.createElement("div", { className: "content-wrap" }, loading && /* @__PURE__ */ React.createElement("p", { className: "info-txt" }, "Memuat data..."), !loading && profile?.role === "worker" && /* @__PURE__ */ React.createElement(WorkerPage, { pushNotif, me: profile }), !loading && profile?.role === "owner" && /* @__PURE__ */ React.createElement(OwnerPage, { pushNotif, me: profile }), !loading && profile?.role === "investor" && /* @__PURE__ */ React.createElement(InvestorPage, { investorId: profile.investorId, pushNotif, me: profile }))), /* @__PURE__ */ React.createElement("div", { className: "notif-stack" }, notifs.map((n) => /* @__PURE__ */ React.createElement(Notif, { key: n.id, msg: n.msg, type: n.type, onClose: () => removeNotif(n.id) }))));
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, !authSession ? /* @__PURE__ */ React.createElement(LoginPage, null) : /* @__PURE__ */ React.createElement("div", { className: "app-wrap" }, /* @__PURE__ */ React.createElement("nav", { className: "top-nav" }, /* @__PURE__ */ React.createElement("span", { className: "nav-brand" }, "Evora"), /* @__PURE__ */ React.createElement("span", { className: "nav-role" }, profile?.role === "owner" ? "Owner" : profile?.role === "worker" ? "Pekerja" : profile?.role === "investor" ? "Investor" : "\u2014"), /* @__PURE__ */ React.createElement("button", { className: "btn-logout", onClick: () => sb.auth.signOut() }, "Keluar")), /* @__PURE__ */ React.createElement("div", { className: "content-wrap" }, loading && /* @__PURE__ */ React.createElement("p", { className: "info-txt" }, "Memuat data..."), !loading && profile?.role === "worker" && /* @__PURE__ */ React.createElement(WorkerPage, { pushNotif, me: profile }), !loading && profile?.role === "owner" && /* @__PURE__ */ React.createElement(OwnerPage, { pushNotif, me: profile }), !loading && profile?.role === "investor" && /* @__PURE__ */ React.createElement(InvestorPage, { investorId: profile.investorId, pushNotif, me: profile }))), /* @__PURE__ */ React.createElement("div", { className: "notif-stack" }, notifs.map((n) => /* @__PURE__ */ React.createElement(Notif, { key: n.id, msg: n.msg, type: n.type, onClose: () => removeNotif(n.id) }))));
   }
   var root = ReactDOM.createRoot(document.getElementById("root"));
   root.render(/* @__PURE__ */ React.createElement(App, null));

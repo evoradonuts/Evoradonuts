@@ -2,7 +2,7 @@
   const cfg = window.APP_CONFIG || {};
   if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || cfg.SUPABASE_ANON_KEY.includes("PASTE_")) {
     console.warn(
-      "[DonatBoss] config.js belum diisi. Isi SUPABASE_URL dan SUPABASE_ANON_KEY dulu (anon/public key)."
+      "[Evora] config.js belum diisi. Isi SUPABASE_URL dan SUPABASE_ANON_KEY dulu (anon/public key)."
     );
   }
 
@@ -16,4 +16,3 @@
     },
   });
 })();
-
