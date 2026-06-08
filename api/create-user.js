@@ -23,7 +23,8 @@ export default async function handler(req, res) {
 
     if (!raw) return res.status(400).json({ error: "Username/Email wajib diisi." });
     if (!pwd || pwd.length < 6) return res.status(400).json({ error: "Password minimal 6 karakter." });
-    if (!["worker", "investor"].includes(finalRole)) return res.status(400).json({ error: "Role harus worker/investor." });
+    if (!["worker", "investor", "owner"].includes(finalRole)) {
+  return res.status(400).json({ error: "Role harus worker/investor/owner." });
 
     // samakan dengan app kamu
     const email = (raw.includes("@") ? raw : `${raw.toLowerCase()}@donatboss.local`).toLowerCase();
