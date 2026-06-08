@@ -294,8 +294,8 @@ var DonatBoss = (() => {
       /* @__PURE__ */ React.createElement(
         "div",
         { className: "login-card" },
-        /* @__PURE__ */ React.createElement("div", { style: { fontSize: 52, textAlign: "center" } }, "donat"),
-        /* @__PURE__ */ React.createElement("h1", { className: "login-title" }, "Evora"),
+        /* @__PURE__ */ React.createElement("div", { style: { fontSize: 52, textAlign: "center" } }, "EVORA"),
+        /* @__PURE__ */ React.createElement("h1", { className: "login-title" }, "DONAT"),
         /* @__PURE__ */ React.createElement("p", { className: "login-sub" }, "Masuk privat menggunakan Kata Sandi tanpa tautan email."),
         
         /* @__PURE__ */ React.createElement(
