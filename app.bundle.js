@@ -768,36 +768,57 @@ var DonatBoss = (() => {
     const TLABEL = { hpp: "Menu HPP", paket: "Box/Paket", cabang: "Cabang", akun: "Akun", investor: "Investor", data: "Data" };
     return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "tabs tabs-sm" }, TABS.map((t) => /* @__PURE__ */ React.createElement("button", { key: t, className: "tab" + (stab === t ? " active" : ""), onClick: () => setStab(t) }, TLABEL[t]))), stab === "hpp" && /* @__PURE__ */ React.createElement(SettingHPP, { pushNotif }), stab === "paket" && /* @__PURE__ */ React.createElement(SettingPaket, { pushNotif }), stab === "cabang" && /* @__PURE__ */ React.createElement(SettingCabang, { pushNotif }), stab === "akun" && /* @__PURE__ */ React.createElement(SettingAkun, { pushNotif }), stab === "investor" && /* @__PURE__ */ React.createElement(SettingInvestor, { pushNotif }), stab === "data" && /* @__PURE__ */ React.createElement(SettingData, { pushNotif }));
   }
-
-  // Tab khusus untuk bersih-bersih data uji coba (owner saja).
   function SettingData({ pushNotif }) {
+    // 1. Deklarasi State
     const [busy, setBusy] = useState(false);
-    const clearTable = async (table) => {
-      const { error } = await sb.from(table).delete().neq("id", "00000000-0000-0000-0000-000000000000");
-      if (error) throw error;
-    };
-        const doClear = async (label, tables, keysToReload, branchId = null, targetDate = null) => {
-      // Konfirmasi sebelum hapus
-      const msg = `Yakin hapus data: ${label} ` + 
-                  (branchId ? `Cabang ${branchId} ` : 'SEMUA CABANG ') + 
-                  (targetDate ? `Tanggal ${targetDate}?` : 'SEMUA TANGGAL?');
+    const branches = S.get("branches") || [];
+    const [selBranch, setSelBranch] = useState("");
+    const [selDate, setSelDate] = useState("");
+
+    // 2. Fungsi Eksekusi Hapus yang sudah disempurnakan
+    const doClear = async (label, tables, keysToReload) => {
+      // Bikin teks konfirmasi yang jelas agar Owner tidak salah hapus
+      const branchName = selBranch ? branches.find(b => b.id === selBranch)?.name : "SEMUA CABANG";
+      const dateName = selDate ? selDate : "SEMUA TANGGAL";
+      
+      const msg = `⚠️ YAKIN HAPUS DATA: ${label}?\n\nCabang: ${branchName}\nTanggal: ${dateName}\n\nTindakan ini tidak bisa dibatalkan!`;
       if (!confirm(msg)) return;
       
       setBusy(true);
       try {
         for (const t of tables) {
-          // Inisialisasi query dasar
+          // Query dasar: pilih semua baris
           let query = sb.from(t).delete().neq("id", "00000000-0000-0000-0000-000000000000");
           
-          // Tambahkan filter jika ada
-          if (branchId) query = query.eq("branchId", branchId);
-          if (targetDate) query = query.eq("date", targetDate);
+          // --- FILTER CABANG ---
+          // Tabel pengeluaranOwner bersifat global (tidak punya branchId), jadi kita kecualikan agar tidak error
+          if (selBranch && t !== "pengeluaranOwner") {
+            query = query.eq("branchId", selBranch);
+          }
           
+          // --- FILTER TANGGAL ---
+          if (selDate) {
+            // Tabel yang menggunakan format harian (YYYY-MM-DD)
+            if (["transactions", "pengeluaranLapak", "pengeluaranOwner", "setoranHarian", "absensi"].includes(t)) {
+              query = query.eq("date", selDate);
+            } 
+            // Tabel yang menggunakan format bulanan (YYYY-MM), kita potong selDate-nya
+            else if (["setoranBulanan", "absensiBulanan"].includes(t)) {
+              const targetBulan = selDate.slice(0, 7); // Contoh: "2026-06-09" diubah jadi "2026-06"
+              query = query.eq("bulan", targetBulan);
+            }
+            // Tabel editLog tidak dipotong berdasarkan tanggal agar tidak error (dihapus per cabang saja)
+          }
+          
+          // Eksekusi query
           const { error } = await query;
           if (error) throw error;
         }
         
-        for (const k of keysToReload) await S.loadKey(k).catch(() => {});
+        // Reload data UI agar langsung hilang dari layar
+        for (const k of keysToReload) {
+          await S.loadKey(k).catch(() => {});
+        }
         pushNotif(`Berhasil hapus: ${label}`, "success");
       } catch (e) {
         pushNotif(e?.message || String(e), "warning");
@@ -805,29 +826,33 @@ var DonatBoss = (() => {
         setBusy(false);
       }
     };
-    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { className: "section-title mt8" }, "Bersihkan Data"), /* @__PURE__ */ React.createElement("p", { className: "info-txt" },), /* @__PURE__ */ React.createElement("div", { className: "form-card mt8" }, /* @__PURE__ */ React.createElement("h4", null, "Hapus per kategori"), /* @__PURE__ */ React.createElement("div", { className: "row-wrap", style: { gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Laporan & Transaksi", ["transactions"], ["transactions"]) }, "Hapus Laporan/Transaksi"), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Pengeluaran", ["pengeluaranLapak", "pengeluaranOwner"], ["pengeluaranLapak", "pengeluaranOwner"]) }, "Hapus Pengeluaran"), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Setoran", ["setoranHarian", "setoranBulanan"], ["setoranHarian", "setoranBulanan"]) }, "Hapus Setoran"), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Absensi", ["absensi", "absensiBulanan"], ["absensi", "absensiBulanan"]) }, "Hapus Absensi"), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Edit Log", ["editLog"], ["editLog"]) }, "Hapus Edit Log"))));
-    // Di dalam return SettingData:
-const [selBranch, setSelBranch] = useState("");
-const [selDate, setSelDate] = useState("");
 
-// ... (render)
-/* 1. Tambahkan Filter */
-/* ... */
-<select className="inp" onChange={(e) => setSelBranch(e.target.value)}>
-  <option value="">Semua Cabang</option>
-  {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-</select>
+    // 3. Tampilan UI
+    return /* @__PURE__ */ React.createElement("div", null, 
+      /* @__PURE__ */ React.createElement("h3", { className: "section-title mt8" }, "Bersihkan Data"), 
+      /* @__PURE__ */ React.createElement("p", { className: "info-txt" }, "Pilih cabang dan tanggal untuk menghapus data spesifik. Jika dibiarkan kosong, maka akan menghapus SEMUA data."), 
+      
+      /* --- BAGIAN FILTER --- */
+      /* @__PURE__ */ React.createElement("div", { className: "filter-bar mb8" },
+        /* @__PURE__ */ React.createElement("select", { className: "inp inp-sm", value: selBranch, onChange: (e) => setSelBranch(e.target.value) },
+          /* @__PURE__ */ React.createElement("option", { value: "" }, "-- Semua Cabang --"),
+          branches.map(b => /* @__PURE__ */ React.createElement("option", { key: b.id, value: b.id }, b.name))
+        ),
+        /* @__PURE__ */ React.createElement("input", { type: "date", className: "inp inp-sm", value: selDate, onChange: (e) => setSelDate(e.target.value) })
+      ),
 
-<input type="date" className="inp" onChange={(e) => setSelDate(e.target.value)} />
-
-/* 2. Tombol Hapus */
-<button 
-  className="btn-danger-sm" 
-  onClick={() => doClear("Transaksi", ["transactions"], ["transactions"], selBranch, selDate)}
->
-  Hapus Transaksi Filter
-</button>
-
+      /* --- TOMBOL HAPUS --- */
+      /* @__PURE__ */ React.createElement("div", { className: "form-card mt8" }, 
+        /* @__PURE__ */ React.createElement("h4", null, "Eksekusi Hapus"), 
+        /* @__PURE__ */ React.createElement("div", { className: "row-wrap", style: { gap: 8, flexWrap: "wrap", marginTop: 8 } }, 
+          /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Laporan & Transaksi", ["transactions"], ["transactions"]) }, "Hapus Transaksi"), 
+          /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Pengeluaran", ["pengeluaranLapak", "pengeluaranOwner"], ["pengeluaranLapak", "pengeluaranOwner"]) }, "Hapus Pengeluaran"), 
+          /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Setoran", ["setoranHarian", "setoranBulanan"], ["setoranHarian", "setoranBulanan"]) }, "Hapus Setoran"), 
+          /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Absensi", ["absensi", "absensiBulanan"], ["absensi", "absensiBulanan"]) }, "Hapus Absensi"), 
+          /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Edit Log", ["editLog"], ["editLog"]) }, "Hapus Edit Log")
+        )
+      )
+    );
   }
   function SettingHPP({ pushNotif }) {
     const [sub, setSub] = useState("bahan");
