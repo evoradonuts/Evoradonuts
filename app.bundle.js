@@ -776,11 +776,27 @@ var DonatBoss = (() => {
       const { error } = await sb.from(table).delete().neq("id", "00000000-0000-0000-0000-000000000000");
       if (error) throw error;
     };
-    const doClear = async (label, tables, keysToReload) => {
-      if (!confirm(`Yakin hapus data: ${label} ?`)) return;
+        const doClear = async (label, tables, keysToReload, branchId = null, targetDate = null) => {
+      // Konfirmasi sebelum hapus
+      const msg = `Yakin hapus data: ${label} ` + 
+                  (branchId ? `Cabang ${branchId} ` : 'SEMUA CABANG ') + 
+                  (targetDate ? `Tanggal ${targetDate}?` : 'SEMUA TANGGAL?');
+      if (!confirm(msg)) return;
+      
       setBusy(true);
       try {
-        for (const t of tables) await clearTable(t);
+        for (const t of tables) {
+          // Inisialisasi query dasar
+          let query = sb.from(t).delete().neq("id", "00000000-0000-0000-0000-000000000000");
+          
+          // Tambahkan filter jika ada
+          if (branchId) query = query.eq("branchId", branchId);
+          if (targetDate) query = query.eq("date", targetDate);
+          
+          const { error } = await query;
+          if (error) throw error;
+        }
+        
         for (const k of keysToReload) await S.loadKey(k).catch(() => {});
         pushNotif(`Berhasil hapus: ${label}`, "success");
       } catch (e) {
