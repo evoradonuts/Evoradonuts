@@ -346,47 +346,7 @@ var DonatBoss = (() => {
       )
     );
   }
-   = useState([]);
-    const [txDate, setTxDate] = useState(today());
-    const [editModal, setEditModal] = useState(null);
-    const userId = me?.user_id;
-    useEffect(() => {
-      setBranches(S.get("branches") || []);
-      setMenus(S.get("menuVarian") || []);
-      setTopings(S.get("topingTambahan") || []);
-      if (me?.branchId) setBranchId(me.branchId);
-    }, [tick, me?.branchId]);
-    const curBranch = branches.find((b) => b.id === branchId);
-    const transactions = (S.get("transactions") || []).filter((t) => t.branchId === branchId && t.date === txDate);
-    const branchOmzet = transactions.reduce((a, t) => a + t.total, 0);
-    const branchPeng = (S.get("pengeluaranLapak") || []).filter((p) => p.branchId === branchId && p.date === txDate).reduce((a, p) => a + p.jumlah, 0);
-    const addToCart = (menu) => setCart((c) => {
-      const ex = c.find((x) => x.menuId === menu.id);
-      if (ex) return c.map((x) => x.menuId === menu.id ? { ...x, qty: x.qty + 1 } : x);
-      return [...c, { id: uid(), menuId: menu.id, topingId: null, nama: menu.nama, tipe: menu.tipe || "satuan", isiBox: menu.isiBox || null, hargaJual: menu.hargaJual, hpp: hitungHPP(menu), qty: 1 }];
-    });
-    const addToping = (tp) => setCart((c) => {
-      const ex = c.find((x) => x.topingId === tp.id);
-      if (ex) return c.map((x) => x.topingId === tp.id ? { ...x, qty: x.qty + 1 } : x);
-      return [...c, { id: uid(), menuId: null, topingId: tp.id, nama: tp.nama + " (Toping)", tipe: "toping", hargaJual: tp.hargaJual, hpp: tp.hargaBahan, qty: 1 }];
-    });
-    const removeCart = (id) => setCart((c) => c.filter((x) => x.id !== id));
-    const totalBayar = cart.reduce((a, x) => a + x.hargaJual * x.qty, 0);
-    const submitTx = () => {
-      if (!cart.length) return;
-      if (mode === "worker") {
-        const abs = (S.get("absensi") || []).find((a) => a.user_id === userId && a.date === txDate);
-        if (!abs?.checkin_ts) {
-          alert("Silakan check-in absensi dulu sebelum input transaksi.");
-          return;
-        }
-      }
-      const txs = S.get("transactions") || [];
-      S.set("transactions", [...txs, { id: uid(), branchId, date: txDate, ts: nowTs(), items: cart.map((x) => ({ ...x })), total: totalBayar, totalHPP: cart.reduce((a, x) => a + x.hpp * x.qty, 0) }]);
-      setCart([]);
-      pushNotif("Transaksi disimpan!", "success");
-    };
-  Function WorkerPage({ pushNotif, me, mode = "worker" }) {
+  function WorkerPage({ pushNotif, me, mode = "worker" }) {
     const tick = useStoreTick();
     const [tab, setTab] = useState("kasir");
     const [branches, setBranches] = useState(() => S.get("branches") || []);
