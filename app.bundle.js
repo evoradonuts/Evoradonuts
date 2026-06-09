@@ -201,7 +201,7 @@ var DonatBoss = (() => {
     return tick;
   }
 
-  // LOGIKA BARU: Hitung Total Bahan Pokok Per Pcs Jadi
+  // LOGIKA HPP: Hitung Total Bahan Pokok Per Pcs Jadi
   var hitungTotalBahanPokokPerPcs = () => {
     const bahan = S.get("bahanPokok") || [];
     return bahan.reduce((total, b) => {
@@ -214,16 +214,15 @@ var DonatBoss = (() => {
     }, 0);
   };
 
-  // LOGIKA BARU: Hitung HPP Produk Satuan/Varian Lengkap
+  // LOGIKA HPP: Hitung HPP Produk Satuan/Varian Lengkap
   var hitungHPP = (menu) => {
     const modalPokokPerPcs = hitungTotalBahanPokokPerPcs();
     const bahan = S.get("bahanPokok") || [];
     
-    // Tambahan modal dari bahan varian resep khusus menu ini
     const modalVarianPerPcs = (menu.resepBahanPokok || []).reduce((a, r) => {
       const b = bahan.find((x) => x.id === r.bahanId);
       if (!b) return a;
-      const kapasitasVarian = parseFloat(r.gram) || 0; // Kolom "jadiPcs" resep kita simpan di properti gram
+      const kapasitasVarian = parseFloat(r.gram) || 0; 
       const hargaBeliVarian = parseFloat(b.harga) || 0;
       if (kapasitasVarian > 0) {
         return a + (hargaBeliVarian / kapasitasVarian);
@@ -244,13 +243,20 @@ var DonatBoss = (() => {
     const doLogin = async () => {
       setErr("");
       const u = String(username || "").trim();
-      if (!u || !password) { setErr("Masukkan nama user/email dan password."); return; }
+      if (!u || !password) { 
+        setErr("Masukkan nama user/email dan password."); 
+        return; 
+      }
       try {
         setBusy(true);
         const emailFormat = u.includes("@") ? u : `${u.toLowerCase()}@donatboss.local`;
         const { error } = await sb.auth.signInWithPassword({ email: emailFormat, password: password });
         if (error) throw error;
-      } catch (ex) { setErr(ex?.message || String(ex)); } finally { setBusy(false); }
+      } catch (ex) { 
+        setErr(ex?.message || String(ex)); 
+      } finally { 
+        setBusy(false); 
+      }
     };
 
     return React.createElement("div", { className: "login-wrap" }, 
@@ -260,11 +266,12 @@ var DonatBoss = (() => {
         React.createElement("p", { className: "login-sub" }, "Masuk privat menggunakan Kata Sandi tanpa tautan email."), 
         React.createElement("div", { className: "field-group" }, 
           React.createElement("label", null, "Nama User / Username / Email"), 
-          React.createElement("input", { className: "inp", value: username, onChange: (e) => setUsername(e.target.value), placeholder: "Ketik nama user atau email..." })
+          React.createElement("input", { className: "inp", value: username, onChange: (e) => setUsername(e.target.value), onKeyDown: (e) => e.key === "Enter" && doLogin(), placeholder: "Ketik nama user atau email..." })
         ), 
         React.createElement("div", { className: "field-group", style: { marginTop: 8 } }, 
           React.createElement("label", null, "Kata Sandi (Password)"), 
-          React.createElement("input", { className: "inp", type: "password", value: password, placeholder: "Masukkan kata sandi..." })
+          // FIX BUG UTAMA: Menambahkan fungsi onChange agar sandi bisa diketik lancar kembali
+          React.createElement("input", { className: "inp", type: "password", value: password, onChange: (e) => setPassword(e.target.value), onKeyDown: (e) => e.key === "Enter" && doLogin(), placeholder: "Masukkan kata sandi..." })
         ), 
         err && React.createElement("p", { style: { color: "#ef4444", fontSize: 13, marginTop: 4 } }, err), 
         React.createElement("button", { className: "btn-primary btn-full", onClick: doLogin, disabled: busy, style: { marginTop: 12 } }, busy ? "Memverifikasi..." : "Masuk")
@@ -275,6 +282,7 @@ var DonatBoss = (() => {
   function WorkerPage({ pushNotif, me, mode = "worker" }) {
     const tick = useStoreTick();
     const [tab, setTab] = useState(() => localStorage.getItem("evora_tab") || "kasir");
+    
     const [cart, setCart] = useState(() => { 
       try { 
         const saved = localStorage.getItem("evora_cart"); 
@@ -284,7 +292,6 @@ var DonatBoss = (() => {
       } catch (e) { return []; } 
     });
     
-    // FITUR BARU: Input tanggal manual di Absensi harian kasir
     const [customAbsDate, setCustomAbsDate] = useState(today());
 
     useEffect(() => { localStorage.setItem("evora_tab", tab); }, [tab]);
@@ -314,7 +321,6 @@ var DonatBoss = (() => {
       const ex = c.find((x) => x.menuId === menu.id);
       if (ex) return c.map((x) => x.menuId === menu.id ? { ...x, qty: x.qty + 1 } : x);
       
-      // LOGIKA BARU: Jika tipe box, hitung margin keuntungan kustom box
       let hppTotalItem = hitungHPP(menu);
       if (menu.tipe === "paket") {
         const isiPcs = parseInt(menu.isiBox) || 1;
@@ -379,17 +385,14 @@ var DonatBoss = (() => {
 
     const [absMonth, setAbsMonth] = useState(today().slice(0, 7));
     
-    // Perubahan logika deteksi absensi harian (berdasarkan tanggal kustom pilihan user)
     const currentSelectedAbs = useMemo(() => {
       const all = S.get("absensi") || []; 
       return all.find((a) => a.user_id === userId && a.date === customAbsDate) || null;
     }, [tick, userId, customAbsDate]);
 
-    // FITUR BARU: Input absensi untuk tanggal masa lalu (6 bulan lalu)
     const doCheckin = () => {
       if (!userId) return;
       
-      // Deteksi hari berdasarkan tanggal pilihan kustom
       const dObj = new Date(customAbsDate);
       const namaHariTerpilih = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"][dObj.getDay()];
       
@@ -434,10 +437,6 @@ var DonatBoss = (() => {
       let hadir = 0; let menit = 0;
       for (const r of myMonthRows) {
         if (r.checkin_ts) hadir += 1;
-        if (r.checkin_ts && r.checkout_ts) {
-          const a = Date.parse(r.checkin_ts); const b = Date.parse(r.checkout_ts);
-          if (!Number.isNaN(a) && !Number.isNaN(b) && b > a) menit += Math.floor((b - a) / 60000);
-        }
       }
       return { hadir, menit };
     }, [myMonthRows]);
@@ -668,7 +667,6 @@ var DonatBoss = (() => {
     );
   }
 
-  // FITUR BARU: Form Pengeluaran Owner Dilengkapi Opsi Pemilihan Cabang
   function PengeluaranOwner({ pushNotif }) {
     const [date, setDate] = useState(today());
     const [selBranch, setSelBranch] = useState("all");
@@ -707,17 +705,19 @@ var DonatBoss = (() => {
         React.createElement("h4", null, "Tambah Pengeluaran Pusat Per Cabang"), 
         React.createElement("div", { className: "field-group" }, 
           React.createElement("label", null, "Pilih Alokasi Cabang:"),
-          React.createElement("select", { className: "inp", value: form.targetBranchId, onChange: (e) => setForm((f) => ({ ...f, targetBranchId: e.target.value })) },
+          React.createElement("select", { className: "inp", value: form.targetBranchId, onChange: (e) => setForm({ ...form, targetBranchId: e.target.value }) },
             React.createElement("option", { value: "" }, "-- Pilih Cabang --"),
             branches.map(b => React.createElement("option", { key: b.id, value: b.id }, b.name))
           )
         ),
         React.createElement("div", { className: "field-group" }, 
           React.createElement("label", null, "Kategori"), 
-          React.createElement("select", { className: "inp", value: form.kategori, onChange: (e) => setForm((f) => ({ ...f, kategori: e.target.value })) }, KATEGORI.map((k) => React.createElement("option", { key: k.value, value: k.value }, k.label)))
+          React.createElement("select", { className: "inp", value: form.kategori, onChange: (e) => setForm({ ...form, kategori: e.target.value }) }, KATEGORI.map((k) => React.createElement("option", { key: k.value, value: k.value }, k.label)))
         ), 
-        React.createElement("div", { className: "field-group" }, React.createElement("label", null, "Keterangan"), React.createElement("input", { className: "inp", value: form.keterangan, onChange: (e) => setForm((f) => ({ ...f, keterangan: e.target.value })), placeholder: "Detail pengeluaran..." })), 
-        React.createElement("div", { className: "field-group" }, React.createElement("label", null, "Jumlah (Rp)"), React.createElement("input", { className: "inp", type: "number", value: form.jumlah })), 
+        React.createElement("div", { className: "field-group" }, React.createElement("label", null, "Keterangan"), React.createElement("input", { className: "inp", value: form.keterangan, onChange: (e) => setForm({ ...form, keterangan: e.target.value }), placeholder: "Detail pengeluaran..." })), 
+        React.createElement("div", { className: "field-group" }, React.createElement("label", null, "Jumlah (Rp)"), 
+          // FIX BUG KEDUA: Menambahkan onChange untuk input jumlah agar form alokasi operasional owner bisa diketik nominal uangnya
+          React.createElement("input", { className: "inp", type: "number", value: form.jumlah, onChange: (e) => setForm({ ...form, jumlah: e.target.value }) })), 
         React.createElement("button", { className: "btn-primary", onClick: tambah }, "+ Simpan Pengeluaran")
       ), 
       React.createElement("h3", { className: "section-title mt8" }, "Daftar Biaya Terdistribusi"), 
@@ -734,12 +734,8 @@ var DonatBoss = (() => {
   function OwnerSetoran({ pushNotif }) {
     const [tab, setTab] = useState("harian");
     const [sH, setSH] = useState(() => S.get("setoranHarian") || []);
-    const [sB, setSB] = useState(() => S.get("setoranBulanan") || []);
-    const [bulan, setBulan] = useState(today().slice(0, 7));
     const branches = S.get("branches") || [];
-    const investors = S.get("investors") || [];
-    
-    const refresh = () => { setSH(S.get("setoranHarian") || []); setSB(S.get("setoranBulanan") || []); };
+    const refresh = () => { setSH(S.get("setoranHarian") || []); };
     const konfirmasi = (id) => {
       S.set("setoranHarian", (S.get("setoranHarian") || []).map((s) => s.id === id ? { ...s, status: "selesai", konfirmasiTs: nowTs() } : s));
       refresh(); pushNotif("Setoran dikonfirmasi!", "success");
@@ -777,12 +773,12 @@ var DonatBoss = (() => {
     
     const calcUserMonth = useCallback((userId) => {
       const rows2 = absensi.filter((a) => a.user_id === userId && String(a.date || "").startsWith(month));
-      let hadir = 0; let menit = 0;
+      let hadir = 0;
       for (const r of rows2) {
         if (r.checkin_ts) hadir += 1;
       }
       rows2.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-      return { hadir, menit, history: rows2 };
+      return { hadir, history: rows2 };
     }, [absensi, month]);
 
     const rows = useMemo(() => {
@@ -803,23 +799,17 @@ var DonatBoss = (() => {
   }
 
   function OwnerSetting({ stab, setStab, pushNotif }) {
-    const TABS = ["hpp", "paket", "cabang", "akun", "data"];
-    const TLABEL = { hpp: "Menu HPP Pokok", paket: "HPP Box/Paket", cabang: "Cabang", akun: "Akun", data: "Data" };
+    const TABS = ["hpp", "paket", "cabang", "akun"];
+    const TLABEL = { hpp: "Menu HPP Pokok", paket: "HPP Box/Paket", cabang: "Cabang", akun: "Akun" };
     return React.createElement("div", null, 
       React.createElement("div", { className: "tabs tabs-sm" }, TABS.map((t) => React.createElement("button", { key: t, className: "tab" + (stab === t ? " active" : ""), onClick: () => setStab(t) }, TLABEL[t]))), 
       stab === "hpp" && React.createElement(SettingHPP, { pushNotif }), 
       stab === "paket" && React.createElement(SettingPaket, { pushNotif }), 
       stab === "cabang" && React.createElement(SettingCabang, { pushNotif }), 
-      stab === "akun" && React.createElement(SettingAkun, { pushNotif }), 
-      stab === "data" && React.createElement(SettingData, { pushNotif })
+      stab === "akun" && React.createElement(SettingAkun, { pushNotif })
     );
   }
 
-  function SettingData({ pushNotif }) {
-    return React.createElement("div", null, React.createElement("h3", { className: "section-title" }, "Pembersihan Data Sistem Modul"));
-  }
-
-  // FITUR BARU: Manajemen Form HPP Pokok Berbasis Kolom Kapasitas "Jadi Berapa Pcs"
   function SettingHPP({ pushNotif }) {
     const [bahan, setBahan] = useState(() => S.get("bahanPokok") || []);
     const [editMenu, setEditMenu] = useState(null);
@@ -827,7 +817,7 @@ var DonatBoss = (() => {
     const [nB, setNB] = useState({ nama: "", satuan: "kg", harga: "", jadiPcs: "" });
 
     const saveB = () => {
-      if (!nB.nama || !nB.harga || !nB.jadiPcs) { alert("Semua kolom modal wajib diisi!"); return; }
+      if (!nB.nama || !nB.harga || !nB.jadiPcs) { alert("All form component is mandatory!"); return; }
       const u = [...bahan, { id: uid(), nama: nB.nama, satuan: nB.satuan, harga: parseFloat(nB.harga), jadiPcs: parseInt(nB.jadiPcs) }];
       S.set("bahanPokok", u); setBahan(u); setNB({ nama: "", satuan: "kg", harga: "", jadiPcs: "" }); pushNotif("Bahan pokok diperbarui!", "success");
     };
@@ -852,23 +842,22 @@ var DonatBoss = (() => {
       ), 
       React.createElement("div", { className: "form-card mt8" }, 
         React.createElement("input", { className: "inp mb4", placeholder: "Nama bahan pokok...", value: nB.nama, onChange: (e) => setNB({ ...nB, nama: e.target.value }) }), 
-        React.createElement("input", { className: "inp mb4", type: "number", placeholder: "Harga Beli Pokok...", value: nB.harga, onChange: (e) => setForm ? null : setNB({ ...nB, harga: e.target.value }) }), 
+        // FIX BUG KETIGA: Memperbaiki scope pemicu input komponen adonan bahan pokok
+        React.createElement("input", { className: "inp mb4", type: "number", placeholder: "Harga Beli Pokok...", value: nB.harga, onChange: (e) => setNB({ ...nB, harga: e.target.value }) }), 
         React.createElement("input", { className: "inp mb4", type: "number", placeholder: "Jadi Berapa Pcs Donat...", value: nB.jadiPcs, onChange: (e) => setNB({ ...nB, jadiPcs: e.target.value }) }), 
         React.createElement("button", { className: "btn-primary btn-full", onClick: saveB }, "Tambah Komponen Pokok")
       ),
       React.createElement("h3", { className: "section-title mt12" }, "Varian Topping Menu Satuan"), 
       menus.map((m) => React.createElement("div", { key: m.id, className: "menu-setting-card" }, 
         React.createElement("div", { className: "menu-setting-row" }, React.createElement("strong", null, m.nama), React.createElement("span", null, " Jual: ", fmtRp(m.hargaJual), " | Total HPP: ", fmtRp(hitungHPP(m)), " | Bati: ", fmtRp(m.hargaJual - hitungHPP(m)))) ,
-        React.createElement("button", { className: "btn-secondary btn-sm", onClick: () => setEditMenu({ ...m }) }, "Set Resep Kue Varian")
+        React.createElement("button", { className: "btn-secondary btn-sm mt4", onClick: () => setEditMenu({ ...m }) }, "Set Resep Kue Varian")
       )),
       editMenu && React.createElement(EditMenuModal, { menu: editMenu, bahan, onSave: saveMenu, onClose: () => setEditMenu(null) })
     );
   }
 
-  // FITUR BARU: Setting HPP Untuk Pembungkusan Box / Paket Kemasan Kardus
   function SettingPaket({ pushNotif }) {
     const [pakets, setPakets] = useState(() => (S.get("menuVarian") || []).filter((m) => m.tipe === "paket"));
-    const [bahan] = useState(() => S.get("bahanPokok") || []);
     const [editP, setEditP] = useState(null);
 
     const save = (m) => {
@@ -897,7 +886,7 @@ var DonatBoss = (() => {
           React.createElement("button", { className: "btn-secondary btn-sm mt4", onClick: () => setEditP({ ...p }) }, "Ubah Settingan Box")
         );
       }),
-      React.createElement("button", { className: "btn-primary mt8", onClick: () => setEditP({ id: null, nama: "", tipe: "paket", isiBox: 6, hargaBoxCasing: 2000, hargaJual: 35000, resepBahanPokok: [] }) }, "+ Tambah Jenis Box Baru"),
+      React.createElement("button", { className: "btn-primary mt8", onClick: () => setEditP({ id: null, nama: "", tipe: "paket", isiBox: 6, hargaBoxCasing: 2000, hargaJual: 35000 }) }, "+ Tambah Jenis Box Baru"),
       editP && React.createElement(Modal, { title: "Konfigurasi Nilai Box", onClose: () => setEditP(null) }, 
         React.createElement("div", { className: "field-group" }, React.createElement("label", null, "Nama Box/Paket:"), React.createElement("input", { className: "inp", value: editP.nama, onChange: (e) => setEditP({ ...editP, nama: e.target.value }) })),
         React.createElement("div", { className: "field-group" }, React.createElement("label", null, "Set Isi Berapa Pcs Per Box:"), React.createElement("input", { className: "inp", type: "number", value: editP.isiBox, onChange: (e) => setEditP({ ...editP, isiBox: e.target.value }) })),
@@ -908,13 +897,11 @@ var DonatBoss = (() => {
     );
   }
 
-  // FITUR BARU: Edit Form Resep Topping Menu Berbasis Kapasitas Produksi Varian
   function EditMenuModal({ menu, bahan, onSave, onClose }) {
     const [m, setM] = useState({ ...menu, resepBahanPokok: menu.resepBahanPokok || [] });
     const [nRB, setNRB] = useState({ bahanId: bahan[0]?.id || "", jadiPcsVarian: "" });
     
     const hppDasarDonatPcs = hitungTotalBahanPokokPerPcs();
-    
     const hppVarianToppingPcs = m.resepBahanPokok.reduce((total, r) => {
       const b = bahan.find(x => x.id === r.bahanId);
       if (!b) return total;
@@ -924,7 +911,6 @@ var DonatBoss = (() => {
     }, 0);
 
     const totalHppGabungan = Math.ceil(hppDasarDonatPcs + hppVarianToppingPcs);
-
     const tambahResep = () => {
       if (!nRB.jadiPcsVarian) return;
       setM({ ...m, resepBahanPokok: [...m.resepBahanPokok, { bahanId: nRB.bahanId, gram: nRB.jadiPcsVarian }] });
@@ -940,7 +926,7 @@ var DonatBoss = (() => {
         return React.createElement("div", { key: i, className: "resep-row" }, b?.nama, " - 1 Kaleng/Pack Jadi Untuk: ", r.gram, " Pcs Donat");
       }),
       React.createElement("div", { className: "add-row" }, 
-        React.createElement("select", { className: "inp inp-sm", value: nRB.bahanId, onChange: (e) => setNRB({ ...nRB, branchId: e.target.value }) }, bahan.map(b => React.createElement("option", { key: b.id, value: b.id }, b.name))),
+        React.createElement("select", { className: "inp inp-sm", value: nRB.bahanId, onChange: (e) => setNRB({ ...nRB, bahanId: e.target.value }) }, bahan.map(b => React.createElement("option", { key: b.id, value: b.id }, b.name))),
         React.createElement("input", { className: "inp inp-sm", type: "number", placeholder: "Jadi berapa pcs kue...", value: nRB.jadiPcsVarian, onChange: (e) => setNRB({ ...nRB, jadiPcsVarian: e.target.value }) }),
         React.createElement("button", { className: "btn-primary btn-sm", onClick: tambahResep }, "+")
       ),
@@ -972,10 +958,8 @@ var DonatBoss = (() => {
     );
   }
 
-  // FITUR BARU: Portal Investor Rincian Transparansi Pengeluaran Super Detail
   function InvestorPage({ investorId, pushNotif, me }) {
     const tick = useStoreTick();
-    const [tab, setTab] = useState("harian");
     const [selDate, setSelDate] = useState(today());
     const branches = (S.get("branches") || []).filter((b) => b.type === "investasi" && (!investorId || b.investorId === investorId));
     const txs = S.get("transactions") || [];
@@ -991,12 +975,8 @@ var DonatBoss = (() => {
       branches.map((b) => {
         const dayTxs = txs.filter((t) => t.branchId === b.id && t.date === selDate);
         const omzet = dayTxs.reduce((a, t) => a + t.total, 0);
-        
-        // Filter rincian biaya lapak harian cabang ini
         const pengeluaranHarianLapak = pLapak.filter((p) => p.branchId === b.id && p.date === selDate);
         const totalBiayaLapak = pengeluaranHarianLapak.reduce((a, p) => a + p.jumlah, 0);
-
-        // Filter rincian alokasi biaya owner terdistribusi ke cabang ini
         const pengeluaranHarianPusat = pOwner.filter((p) => p.branchId === b.id && p.date === selDate);
         const totalBiayaPusat = pengeluaranHarianPusat.reduce((a, p) => a + p.jumlah, 0);
 
@@ -1005,7 +985,8 @@ var DonatBoss = (() => {
           React.createElement("div", { style: { fontSize: "14px", color: "#22c55e", fontWeight: "bold" } }, "Omzet Masuk Hari Ini: ", fmtRp(omzet)),
           
           React.createElement("h4", { className: "mt8", style: { marginBottom: "4px", fontSize: "13px", color: "#f87171" } }, "🛑 RINCIAN DETAIL BIAYA PENGELUARAN LAPAK:"),
-          pengvalHarianLapak.length === 0 ? React.createElement("p", { style: { fontSize: "12px", color: "#888" } }, "• Tidak ada pengeluaran harian di lapak") :
+          // FIX BUG KEEMPAT: Memperbaiki salah ketik pemanggilan array pengeluaran investor rincian detail harian lapak
+          pengeluaranHarianLapak.length === 0 ? React.createElement("p", { style: { fontSize: "12px", color: "#888" } }, "• Tidak ada pengeluaran harian di lapak") :
           pengeluaranHarianLapak.map(p => React.createElement("div", { key: p.id, style: { fontSize: "12px", paddingLeft: "8px" } }, "- ", p.keterangan, " (", fmtRp(p.jumlah), ")")),
           
           React.createElement("h4", { className: "mt8", style: { marginBottom: "4px", fontSize: "13px", color: "#f87171" } }, "🛑 RINCIAN DETAIL ALOKASI OPERASIONAL PUSAT (OWNER):"),
