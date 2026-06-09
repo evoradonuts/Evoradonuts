@@ -217,7 +217,7 @@ var DonatBoss = (() => {
     return { get, set, setLocal, loadAll, loadKey, startRealtime, stopRealtime, reset, subscribe, setErrorHandler };
   })();
   var fmtRp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
-  var today = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  var today = () => {const d = new Date();d.setHours(d.getHours() + 7);return d.toISOString().slice(0, 10); };
   var nowTs = () => (/* @__PURE__ */ new Date()).toLocaleString("id-ID");
   var nowIso = () => (/* @__PURE__ */ new Date()).toISOString();
   var fmtTs = (v) => {
