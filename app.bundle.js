@@ -805,7 +805,29 @@ var DonatBoss = (() => {
         setBusy(false);
       }
     };
-    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { className: "section-title mt8" }, "Bersihkan Data (Uji Coba)"), /* @__PURE__ */ React.createElement("p", { className: "info-txt" }, "Tombol di bawah untuk menghapus data yang kamu isi asal-asalan saat testing. Pisah per kategori agar tidak bingung."), /* @__PURE__ */ React.createElement("div", { className: "form-card mt8" }, /* @__PURE__ */ React.createElement("h4", null, "Hapus per kategori"), /* @__PURE__ */ React.createElement("div", { className: "row-wrap", style: { gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Laporan & Transaksi", ["transactions"], ["transactions"]) }, "Hapus Laporan/Transaksi"), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Pengeluaran", ["pengeluaranLapak", "pengeluaranOwner"], ["pengeluaranLapak", "pengeluaranOwner"]) }, "Hapus Pengeluaran"), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Setoran", ["setoranHarian", "setoranBulanan"], ["setoranHarian", "setoranBulanan"]) }, "Hapus Setoran"), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Absensi", ["absensi", "absensiBulanan"], ["absensi", "absensiBulanan"]) }, "Hapus Absensi"), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Edit Log", ["editLog"], ["editLog"]) }, "Hapus Edit Log"))));
+    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { className: "section-title mt8" }, "Bersihkan Data"), /* @__PURE__ */ React.createElement("p", { className: "info-txt" },), /* @__PURE__ */ React.createElement("div", { className: "form-card mt8" }, /* @__PURE__ */ React.createElement("h4", null, "Hapus per kategori"), /* @__PURE__ */ React.createElement("div", { className: "row-wrap", style: { gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Laporan & Transaksi", ["transactions"], ["transactions"]) }, "Hapus Laporan/Transaksi"), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Pengeluaran", ["pengeluaranLapak", "pengeluaranOwner"], ["pengeluaranLapak", "pengeluaranOwner"]) }, "Hapus Pengeluaran"), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Setoran", ["setoranHarian", "setoranBulanan"], ["setoranHarian", "setoranBulanan"]) }, "Hapus Setoran"), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Absensi", ["absensi", "absensiBulanan"], ["absensi", "absensiBulanan"]) }, "Hapus Absensi"), /* @__PURE__ */ React.createElement("button", { className: "btn-danger-sm", disabled: busy, onClick: () => doClear("Edit Log", ["editLog"], ["editLog"]) }, "Hapus Edit Log"))));
+    // Di dalam return SettingData:
+const [selBranch, setSelBranch] = useState("");
+const [selDate, setSelDate] = useState("");
+
+// ... (render)
+/* 1. Tambahkan Filter */
+/* ... */
+<select className="inp" onChange={(e) => setSelBranch(e.target.value)}>
+  <option value="">Semua Cabang</option>
+  {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+</select>
+
+<input type="date" className="inp" onChange={(e) => setSelDate(e.target.value)} />
+
+/* 2. Tombol Hapus */
+<button 
+  className="btn-danger-sm" 
+  onClick={() => doClear("Transaksi", ["transactions"], ["transactions"], selBranch, selDate)}
+>
+  Hapus Transaksi Filter
+</button>
+
   }
   function SettingHPP({ pushNotif }) {
     const [sub, setSub] = useState("bahan");
