@@ -45,7 +45,7 @@ var DonatBoss = (() => {
     });
   };
   var S = /* @__PURE__ */ (() => {
-    const TABLE_BY_KEY = {
+        const TABLE_BY_KEY = {
       branches: "branches",
       bahanPokok: "bahanPokok",
       menuVarian: "menuVarian",
@@ -58,8 +58,8 @@ var DonatBoss = (() => {
       absensi: "absensi",
       absensiBulanan: "absensiBulanan",
       editLog: "editLog",
-      pengeluaranLapak: "pengeluaranLapak",
-      pengeluaranOwner: "pengeluaranOwner"
+      pengeluaranLapak: "pengeluaranLapak", // Pastikan L besar
+      pengeluaranOwner: "pengeluaranOwner"   // Pastikan O besar
     };
     const LOCAL_KEYS = /* @__PURE__ */ new Set(["notified_ids"]);
     let cache = {};
