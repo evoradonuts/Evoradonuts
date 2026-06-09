@@ -438,6 +438,111 @@ var DonatBoss = (() => {
       S.set("absensi", ex ? all.map((a) => a.id === row.id ? row : a) : [...all, row]);
       pushNotif("Check-in berhasil.", "success");
     };
+  Function WorkerPage({ pushNotif, me, mode = "worker" }) {
+    const tick = useStoreTick();
+    const [tab, setTab] = useState("kasir");
+    const [branches, setBranches] = useState(() => S.get("branches") || []);
+    const [branchId, setBranchId] = useState(() => me?.branchId || (S.get("branches") || [{}])[0]?.id || "");
+    const [menus, setMenus] = useState(() => S.get("menuVarian") || []);
+    const [topings, setTopings] = useState(() => S.get("topingTambahan") || []);
+    const [cart, setCart] = useState([]);
+    const [txDate, setTxDate] = useState(today());
+    const [editModal, setEditModal] = useState(null);
+    const userId = me?.user_id;
+    useEffect(() => {
+      setBranches(S.get("branches") || []);
+      setMenus(S.get("menuVarian") || []);
+      setTopings(S.get("topingTambahan") || []);
+      if (me?.branchId) setBranchId(me.branchId);
+    }, [tick, me?.branchId]);
+    const curBranch = branches.find((b) => b.id === branchId);
+    const transactions = (S.get("transactions") || []).filter((t) => t.branchId === branchId && t.date === txDate);
+    const branchOmzet = transactions.reduce((a, t) => a + t.total, 0);
+    const branchPeng = (S.get("pengeluaranLapak") || []).filter((p) => p.branchId === branchId && p.date === txDate).reduce((a, p) => a + p.jumlah, 0);
+    const addToCart = (menu) => setCart((c) => {
+      const ex = c.find((x) => x.menuId === menu.id);
+      if (ex) return c.map((x) => x.menuId === menu.id ? { ...x, qty: x.qty + 1 } : x);
+      return [...c, { id: uid(), menuId: menu.id, topingId: null, nama: menu.nama, tipe: menu.tipe || "satuan", isiBox: menu.isiBox || null, hargaJual: menu.hargaJual, hpp: hitungHPP(menu), qty: 1 }];
+    });
+    const addToping = (tp) => setCart((c) => {
+      const ex = c.find((x) => x.topingId === tp.id);
+      if (ex) return c.map((x) => x.topingId === tp.id ? { ...x, qty: x.qty + 1 } : x);
+      return [...c, { id: uid(), menuId: null, topingId: tp.id, nama: tp.nama + " (Toping)", tipe: "toping", hargaJual: tp.hargaJual, hpp: tp.hargaBahan, qty: 1 }];
+    });
+    const removeCart = (id) => setCart((c) => c.filter((x) => x.id !== id));
+    const totalBayar = cart.reduce((a, x) => a + x.hargaJual * x.qty, 0);
+    const submitTx = () => {
+      if (!cart.length) return;
+      if (mode === "worker") {
+        const abs = (S.get("absensi") || []).find((a) => a.user_id === userId && a.date === txDate);
+        if (!abs?.checkin_ts) {
+          alert("Silakan check-in absensi dulu sebelum input transaksi.");
+          return;
+        }
+      }
+      const txs = S.get("transactions") || [];
+      S.set("transactions", [...txs, { id: uid(), branchId, date: txDate, ts: nowTs(), items: cart.map((x) => ({ ...x })), total: totalBayar, totalHPP: cart.reduce((a, x) => a + x.hpp * x.qty, 0) }]);
+      setCart([]);
+      pushNotif("Transaksi disimpan!", "success");
+    };
+    const saveEdit = (txId, newItems, alasan) => {
+      const txs = S.get("transactions") || [];
+      const old = txs.find((x) => x.id === txId);
+      S.set("transactions", txs.map((t) => t.id === txId ? { ...t, items: newItems, total: newItems.reduce((a, x) => a + x.hargaJual * x.qty, 0), totalHPP: newItems.reduce((a, x) => a + x.hpp * x.qty, 0), edited: true } : t));
+      const logs = S.get("editLog") || [];
+      S.set("editLog", [...logs, { id: uid(), ts: nowTs(), txId, branchId, branchName: curBranch?.name || branchId, alasan, before: old?.items || [], after: newItems }]);
+      setEditModal(null);
+      pushNotif("Transaksi diperbarui. Owner diberitahu.", "warning");
+    };
+    const getSetoran = useCallback(() => {
+      const s = S.get("setoranHarian") || [];
+      return s.find((x) => x.branchId === branchId && x.date === txDate) || { status: "belum" };
+    }, [branchId, txDate]);
+    const [setoran, setSetoran] = useState(getSetoran);
+    useEffect(() => setSetoran(getSetoran()), [getSetoran]);
+    const doSetoran = () => {
+      const s = S.get("setoranHarian") || [];
+      const existing = s.find((x) => x.branchId === branchId && x.date === txDate);
+      const entry = { id: existing?.id || uid(), branchId, branchName: curBranch?.name || branchId, date: txDate, ts: nowTs(), status: "menunggu", omzet: branchOmzet, pengeluaran: branchPeng };
+      S.set("setoranHarian", existing ? s.map((x) => x.id === entry.id ? entry : x) : [...s, entry]);
+      setSetoran(entry);
+      pushNotif("Setoran dikirim ke Owner!", "success");
+    };
+    const allowSetoran = mode === "worker";
+    const TABS = allowSetoran ? ["kasir", "riwayat", "pengeluaran", "setoran", "absensi"] : ["kasir", "riwayat", "pengeluaran", "absensi"];
+    const TAB_LABELS = { kasir: "Kasir", riwayat: "Riwayat", pengeluaran: "Pengeluaran", setoran: "Setoran", absensi: "Absensi" };
+
+    const [absMonth, setAbsMonth] = useState(today().slice(0, 7));
+    const todayAbs = useMemo(() => {
+      const all = S.get("absensi") || [];
+      return all.find((a) => a.user_id === userId && a.date === today()) || null;
+    }, [tick, userId]);
+    
+    // --- FITUR BARU: Gembok Absen Libur ---
+    const doCheckin = () => {
+      if (!userId) return;
+      
+      const namaHariIni = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"][new Date().getDay()];
+      const jadwalLibur = S.get("jadwalLibur") || {};
+      const liburKu = jadwalLibur[userId];
+
+      if (liburKu && liburKu === namaHariIni) {
+        alert(`Akses ditolak!\n\nHari ini (${namaHariIni}) adalah jadwal libur Anda. Anda tidak bisa melakukan Check-in dan Transaksi hari ini.`);
+        return;
+      }
+
+      const all = S.get("absensi") || [];
+      const d = today();
+      const ex = all.find((a) => a.user_id === userId && a.date === d);
+      if (ex?.checkin_ts) {
+        pushNotif("Kamu sudah check-in hari ini.", "warning");
+        return;
+      }
+      const row = ex ? { ...ex, checkin_ts: nowIso(), branchId: me?.branchId || branchId } : { id: uid(), user_id: userId, branchId: me?.branchId || branchId, date: d, checkin_ts: nowIso(), checkout_ts: null };
+      S.set("absensi", ex ? all.map((a) => a.id === row.id ? row : a) : [...all, row]);
+      pushNotif("Check-in berhasil.", "success");
+    };
+
     const doCheckout = () => {
       if (!userId) return;
       const all = S.get("absensi") || [];
