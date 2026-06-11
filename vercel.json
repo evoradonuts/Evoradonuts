@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "functions": {
+    "api/create-user.js": { "runtime": "@vercel/node" },
+    "api/delete-user.js": { "runtime": "@vercel/node" }
+  },
+  "routes": [
+    { "src": "/api/create-user", "dest": "/api/create-user.js" },
+    { "src": "/api/delete-user", "dest": "/api/delete-user.js" },
+    { "src": "/(.*)", "dest": "/$1" }
+  ]
+}
